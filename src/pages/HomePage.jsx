@@ -1,11 +1,34 @@
-import React, { useState } from 'react';
-import { Plus, AlertCircle, FileText, Loader } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, AlertCircle, FileText, Loader, LogOut, User } from 'lucide-react';
+import { Login } from '../components/Login';
 
 const API_BASE_URL = 'http://localhost:8000';
 
 function HomePage({ onNavigate }) {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Verificar si hay un usuario logueado al cargar el componente
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
+    }
+  }, []);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+  };
 
   const handleCreateProject = async () => {
     setLoading(true);
@@ -50,9 +73,35 @@ function HomePage({ onNavigate }) {
     }
   };
 
+  // Si no hay usuario logueado, mostrar el formulario de login
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // Si hay usuario logueado, mostrar el home page
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
       <div className="max-w-3xl w-full">
+        {/* Header con info del usuario y botón de logout */}
+        <div className="mb-6 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center">
+              <User className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Bienvenido,</p>
+              <p className="text-lg font-semibold text-slate-800">{user.username}</p>
+            </div>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-2 px-4 py-2 bg-white rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all duration-200 hover:border-slate-300"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-medium">Cerrar Sesión</span>
+          </button>
+        </div>
+
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-600 rounded-2xl mb-6 shadow-lg shadow-emerald-200">
             <FileText className="w-12 h-12 text-white" />
