@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Stethoscope, Share2 } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Users, Share2 } from 'lucide-react';
 import OntologyGraph from '../components/OntologyGraph';
-import Navbar from '../components/Navbar';
 import { Database, ShieldCheck } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
-function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, developmentData }) {
+function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, setPopulationData, developmentData }) {
   const [formData, setFormData] = useState({
-    label: diseaseData.label || '',
-    comment: diseaseData.comment || '',
+    label: populationData.label || '',
+    comment: populationData.comment || '',
   });
 
-  const [references, setReferences] = useState({
-    hasRefToDO: diseaseData.references?.hasRefToDO || '',
-    hasRefToICD: diseaseData.references?.hasRefToICD || '',
-    hasRefToOMIM: diseaseData.references?.hasRefToOMIM || '',
-    hasRefToSNOMED: diseaseData.references?.hasRefToSNOMED || ''
+  const [demographics, setDemographics] = useState({
+    hasAgeRange: populationData.demographics?.hasAgeRange || '',
+    hasGender: populationData.demographics?.hasGender || '',
+    hasEthnicity: populationData.demographics?.hasEthnicity || '',
+    hasGeographicLocation: populationData.demographics?.hasGeographicLocation || ''
+  });
+
+  const [epidemiology, setEpidemiology] = useState({
+    hasPrevalence: populationData.epidemiology?.hasPrevalence || '',
+    hasIncidence: populationData.epidemiology?.hasIncidence || '',
+    hasMortality: populationData.epidemiology?.hasMortality || '',
+    hasMorbidity: populationData.epidemiology?.hasMorbidity || ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -25,15 +31,16 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
 
   // Actualizar el estado compartido cuando cambian los datos del formulario
   useEffect(() => {
-    setDiseaseData({
+    setPopulationData({
       label: formData.label,
       comment: formData.comment,
-      selectedClasses: ['Disease'],
+      selectedClasses: ['PopulationAffected'],
       datatypeProperties: [],
       objectProperties: [],
-      references: references
+      demographics: demographics,
+      epidemiology: epidemiology
     });
-  }, [formData, references, setDiseaseData]);
+  }, [formData, demographics, epidemiology, setPopulationData]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -42,16 +49,23 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
     });
   };
 
-  const handleReferenceChange = (e) => {
-    setReferences({
-      ...references,
+  const handleDemographicsChange = (e) => {
+    setDemographics({
+      ...demographics,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleEpidemiologyChange = (e) => {
+    setEpidemiology({
+      ...epidemiology,
       [e.target.name]: e.target.value
     });
   };
 
   const handleSave = async () => {
     if (!formData.label) {
-      setError('El nombre de la enfermedad es obligatorio');
+      setError('El nombre de la población es obligatorio');
       return;
     }
 
@@ -61,16 +75,20 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
 
     try {
       const allProperties = [
-        ...(references.hasRefToDO ? [{ property: 'hasRefToDO', value: references.hasRefToDO }] : []),
-        ...(references.hasRefToICD ? [{ property: 'hasRefToICD', value: references.hasRefToICD }] : []),
-        ...(references.hasRefToOMIM ? [{ property: 'hasRefToOMIM', value: references.hasRefToOMIM }] : []),
-        ...(references.hasRefToSNOMED ? [{ property: 'hasRefToSNOMED', value: references.hasRefToSNOMED }] : []),
+        ...(demographics.hasAgeRange ? [{ property: 'hasAgeRange', value: demographics.hasAgeRange }] : []),
+        ...(demographics.hasGender ? [{ property: 'hasGender', value: demographics.hasGender }] : []),
+        ...(demographics.hasEthnicity ? [{ property: 'hasEthnicity', value: demographics.hasEthnicity }] : []),
+        ...(demographics.hasGeographicLocation ? [{ property: 'hasGeographicLocation', value: demographics.hasGeographicLocation }] : []),
+        ...(epidemiology.hasPrevalence ? [{ property: 'hasPrevalence', value: epidemiology.hasPrevalence }] : []),
+        ...(epidemiology.hasIncidence ? [{ property: 'hasIncidence', value: epidemiology.hasIncidence }] : []),
+        ...(epidemiology.hasMortality ? [{ property: 'hasMortality', value: epidemiology.hasMortality }] : []),
+        ...(epidemiology.hasMorbidity ? [{ property: 'hasMorbidity', value: epidemiology.hasMorbidity }] : []),
       ];
 
       const dataToSend = {
         label: formData.label,
         comment: formData.comment,
-        selectedClasses: ['Disease'],
+        selectedClasses: ['PopulationAffected'],
         datatypeProperties: allProperties,
         objectProperties: []
       };
@@ -90,7 +108,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
         }, 2000);
       } else {
         const data = await response.json();
-        setError(data.detail || 'Error al crear la enfermedad');
+        setError(data.detail || 'Error al crear la población afectada');
       }
     } catch (err) {
       setError('Error conectando con el servidor. Asegúrate de que la API esté corriendo en http://localhost:8000');
@@ -118,7 +136,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
             <div className="max-w-full mx-auto px-6 py-3">
               <div className="bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-3 flex items-start shadow-sm">
                 <CheckCircle className="w-5 h-5 text-emerald-600 mr-2 mt-0.5 shrink-0" />
-                <p className="text-emerald-800 text-sm font-medium">¡Enfermedad guardada exitosamente!</p>
+                <p className="text-emerald-800 text-sm font-medium">¡Población guardada exitosamente!</p>
               </div>
             </div>
           )}
@@ -135,21 +153,20 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
               <div className="bg-slate-900 rounded-2xl shadow-xl p-7 text-white relative overflow-hidden">
                 <div className="relative z-10">
                   <div className="flex items-center space-x-3 mb-2">
-                    <Stethoscope className="w-7 h-7 text-emerald-400" />
-                    <h1 className="text-2xl font-bold">Enfermedad</h1>
+                    <Users className="w-7 h-7 text-emerald-400" />
+                    <h1 className="text-2xl font-bold">Población Afectada</h1>
                   </div>
                   <p className="text-slate-300 text-sm">
-                    Define las características principales de la enfermedad
+                    Define las características demográficas y epidemiológicas de la población
                   </p>
                 </div>
               </div>
 
               <div className="space-y-5">
-
                 <div className="grid gap-5">
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Nombre de la Enfermedad
+                      Nombre de la Población
                     </label>
                     <input
                       type="text"
@@ -160,7 +177,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
                       autoCorrect="off"
                       autoCapitalize="off"
                       spellCheck={false}
-                      placeholder="ej: Diabetes Mellitus Tipo 2"
+                      placeholder="ej: Adultos con Diabetes Tipo 2 en España"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                     />
                   </div>
@@ -178,63 +195,118 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
                       autoCapitalize="off"
                       spellCheck={false}
                       rows="3"
-                      placeholder="Breve resumen de la enfermedad..."
+                      placeholder="Breve resumen de la población afectada..."
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Bloque: Propiedades */}
+              {/* Bloque: Datos Demográficos */}
               <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
                 <div className="flex items-center space-x-2">
-                  <Database className="w-5 h-5 text-slate-600" />
-                  <h2 className="text-md font-bold text-slate-800">Propiedades</h2>
+                  <Users className="w-5 h-5 text-slate-600" />
+                  <h2 className="text-md font-bold text-slate-800">Datos Demográficos</h2>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">CIE-10 (ICD)</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Rango de Edad</label>
                     <input
                       type="text"
-                      name="hasRefToICD"
-                      value={references.hasRefToICD}
-                      onChange={handleReferenceChange}
+                      name="hasAgeRange"
+                      value={demographics.hasAgeRange}
+                      onChange={handleDemographicsChange}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="Cód. Diagnóstico"
+                      placeholder="ej: 40-65 años"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">SNOMED CT</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Género</label>
                     <input
                       type="text"
-                      name="hasRefToSNOMED"
-                      value={references.hasRefToSNOMED}
-                      onChange={handleReferenceChange}
+                      name="hasGender"
+                      value={demographics.hasGender}
+                      onChange={handleDemographicsChange}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ID Concepto"
+                      placeholder="ej: Todos, Masculino, Femenino"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">OMIM</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Etnia</label>
                     <input
                       type="text"
-                      name="hasRefToOMIM"
-                      value={references.hasRefToOMIM}
-                      onChange={handleReferenceChange}
+                      name="hasEthnicity"
+                      value={demographics.hasEthnicity}
+                      onChange={handleDemographicsChange}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="Ref. Genética"
+                      placeholder="ej: Caucásica, Hispana"
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Disease Ontology</label>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Ubicación Geográfica</label>
                     <input
                       type="text"
-                      name="hasRefToDO"
-                      value={references.hasRefToDO}
-                      onChange={handleReferenceChange}
+                      name="hasGeographicLocation"
+                      value={demographics.hasGeographicLocation}
+                      onChange={handleDemographicsChange}
                       className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="DOID:XXXX"
+                      placeholder="ej: España, Europa"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bloque: Datos Epidemiológicos */}
+              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
+                <div className="flex items-center space-x-2">
+                  <Database className="w-5 h-5 text-slate-600" />
+                  <h2 className="text-md font-bold text-slate-800">Datos Epidemiológicos</h2>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Prevalencia</label>
+                    <input
+                      type="text"
+                      name="hasPrevalence"
+                      value={epidemiology.hasPrevalence}
+                      onChange={handleEpidemiologyChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
+                      placeholder="ej: 13.8% en adultos"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Incidencia</label>
+                    <input
+                      type="text"
+                      name="hasIncidence"
+                      value={epidemiology.hasIncidence}
+                      onChange={handleEpidemiologyChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
+                      placeholder="ej: 11.6 casos/1000 personas-año"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Mortalidad</label>
+                    <input
+                      type="text"
+                      name="hasMortality"
+                      value={epidemiology.hasMortality}
+                      onChange={handleEpidemiologyChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
+                      placeholder="ej: 5.2% anual"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase">Morbilidad</label>
+                    <input
+                      type="text"
+                      name="hasMorbidity"
+                      value={epidemiology.hasMorbidity}
+                      onChange={handleEpidemiologyChange}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
+                      placeholder="ej: Alto riesgo cardiovascular"
                     />
                   </div>
                 </div>
@@ -244,11 +316,11 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
               <div className="flex items-start space-x-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
                 <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                 <p className="text-xs text-emerald-800 leading-relaxed">
-                  <strong>Validación HEOR:</strong> Asegúrese de que los códigos vinculados coincidan con las bases de datos de reembolso locales para un cálculo de costes preciso.
+                  <strong>Validación HEOR:</strong> Los datos epidemiológicos deben basarse en estudios poblacionales recientes y validados para garantizar estimaciones precisas de carga de enfermedad.
                 </p>
               </div>
 
-              {/* Botón Guardar - Flotante o Sticky al final del panel */}
+              {/* Botón Guardar */}
               <div className="pt-4">
                 <button
                   onClick={handleSave}
@@ -263,14 +335,12 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
           </div>
         </div>
 
-        {/* Panel Derecho - Grafo con fondo oscuro profesional */}
+        {/* Panel Derecho - Grafo */}
         <div className="w-3/4 flex flex-col bg-slate-200 p-10 h-full">
           <div className="flex flex-col h-full bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
-
-            {/* Header del Grafo - Estilo Instrumento de Medición */}
             <div className="bg-slate-900 px-6 py-5 border-b border-slate-800 flex justify-between items-center">
               <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> {/* Indicador "Live" */}
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                 <div>
                   <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
                     Mapa interactivo de la enfermedad
@@ -281,7 +351,6 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
                 </div>
               </div>
 
-              {/* Badge de estado del Grafo */}
               <div className="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
                 <Share2 className="w-3 h-3 text-emerald-400" />
                 <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
@@ -290,20 +359,17 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
               </div>
             </div>
 
-            {/* Área del Grafo con efecto de profundidad */}
             <div className="flex-1 relative bg-slate-50 bg-size-[20px_20px]">
               <div className="absolute inset-0 overflow-hidden">
                 <OntologyGraph
                   diseaseData={diseaseData}
+                  populationData={populationData}
                   developmentData={developmentData}
                 />
               </div>
-
-              {/* Overlay de viñeta para centrar la atención en el centro del grafo */}
               <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.3)]" />
             </div>
 
-            {/* Footer del Grafo - Resumen de datos */}
             <div className="bg-slate-900/50 px-6 py-3 border-t border-slate-800 flex justify-between items-center">
               <div className="flex space-x-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                 <span className="flex items-center">
@@ -324,4 +390,4 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
   );
 }
 
-export default DiseasePage;
+export default PopulationPage;

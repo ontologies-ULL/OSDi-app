@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { Activity, User, Mail, Lock, ArrowRight } from 'lucide-react';
 
 const Hero = ({ type, active, title, text, buttonText, onButtonClick }) => {
   // Hero signup: left side (default position)
   // Hero signin: right side (left: 50%)
   const basePosition = type === 'signin' ? 'left-1/2' : 'left-0';
-  
+
   let transform;
   if (type === 'signup') {
     transform = active ? 'translate-x-0' : '-translate-x-full';
@@ -13,17 +14,12 @@ const Hero = ({ type, active, title, text, buttonText, onButtonClick }) => {
   }
 
   return (
-    <div
-      className={`
-        absolute ${basePosition} w-1/2 h-full z-30 flex flex-col items-center justify-center gap-2.5 px-6
-        text-white transition-all duration-650 ease-in-out ${transform}
-      `}
-    >
-      <h2 className="m-0 font-medium text-[32px]">{title}</h2>
-      <p className="text-white text-xs">{text}</p>
+    <div className={`absolute ${basePosition} w-1/2 h-full z-30 flex flex-col items-center justify-center gap-4 px-10 text-center text-white transition-all duration-700 ease-in-out ${transform}`}>
+      <h2 className="text-3xl font-bold tracking-tight">{title}</h2>
+      <p className="text-emerald-100 text-sm leading-relaxed opacity-90">{text}</p>
       <button
         onClick={onButtonClick}
-        className="border-0 py-3.5 px-0 rounded-4xl text-white w-40 bg-emerald-500/80 cursor-pointer font-semibold text-sm hover:bg-emerald-700 transition-all mt-4"
+        className="mt-4 px-8 py-3 rounded-full border-2 border-white/30 bg-white/10 backdrop-blur-sm text-white font-bold text-sm hover:bg-white hover:text-emerald-600 transition-all duration-300"
       >
         {buttonText}
       </button>
@@ -35,7 +31,7 @@ const AuthForm = ({ type, active, title, children, onSubmit }) => {
   // Form signup: right side (left: 50%)
   // Form signin: left side (default position)
   const basePosition = type === 'signup' ? 'left-1/2' : 'left-0';
-  
+
   let transform;
   if (type === 'signup') {
     transform = active ? 'translate-x-0' : 'translate-x-full';
@@ -44,15 +40,12 @@ const AuthForm = ({ type, active, title, children, onSubmit }) => {
   }
 
   return (
-    <div
-      className={`
-        absolute ${basePosition} w-1/2 h-full bg-inherit z-10 flex flex-col justify-center gap-4 px-8
-        transition-all duration-650 ease-in-out ${transform}
-      `}
-    >
-      <h3 className="text-white font-medium text-xl">{title}</h3>
-      <p className="text-slate-400 text-xs mb-2">También puedes usar tu correo electrónico y contraseña</p>
-      <form className="flex flex-col items-center gap-3 w-full" onSubmit={onSubmit}>
+    <div className={`absolute ${basePosition} w-1/2 h-full z-10 flex flex-col justify-center gap-6 px-12 transition-all duration-700 ease-in-out ${transform}`}>
+      <div>
+        <h3 className="text-white font-bold text-2xl mb-1">{title}</h3>
+        <p className="text-slate-400 text-xs">Rellena los campos para continuar</p>
+      </div>
+      <form className="flex flex-col gap-4 w-full" onSubmit={onSubmit}>
         {children}
       </form>
     </div>
@@ -101,118 +94,141 @@ export const Login = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
-      <div className="relative overflow-hidden w-165 h-110 rounded-2xl bg-slate-800 shadow-2xl">
-        {/* Background sliding panel */}
-        <div
-          className="absolute inset-0 w-1/2 bg-linear-to-br from-emerald-500/ to-emerald-600 z-20 transition-transform duration-650 ease-in-out"
-          style={{
-            transform: isSignup ? 'translateX(0)' : 'translateX(100%)'
-          }}
-        />
+    <div className="min-h-screen bg-slate-200 flex flex-col items-center justify-center p-6 font-sans">
+      {/* Brand Header */}
+      <div className="flex items-center space-x-4 mb-10">
+        <div className="bg-slate-900 p-3 rounded-2xl shadow-xl">
+          <Activity className="w-8 h-8 text-emerald-400" />
+        </div>
+        <div>
+          <h1 className="text-5xl font-black text-slate-900 tracking-tighter text-center">
+            OSDI <span className="text-emerald-500 text-3xl">app</span>
+          </h1>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Ontology for the Simulation of Diseases</p>
+        </div>
+      </div>
 
-        {/* Sign Up Hero - Left side when active */}
+      {/* Main Container */}
+      <div className="relative overflow-hidden w-212.5 h-137.5 rounded-3xl bg-slate-900 shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+        
+        {/* Sliding Background Panel */}
+        <div
+          className="absolute inset-0 w-1/2 bg-linear-to-br from-emerald-500 to-emerald-700 z-20 transition-transform duration-700 ease-in-out shadow-2xl"
+          style={{ transform: isSignup ? 'translateX(0)' : 'translateX(100%)' }}
+        >
+          {/* Decorative Pattern similar to Graph bg */}
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+        </div>
+
+        {/* Signup Content */}
         <Hero
-          type="signup"
-          active={isSignup}
-          title="¡Bienvenido!"
-          text="Si ya tienes una cuenta, inicia sesión aquí."
-          buttonText="Iniciar sesión"
+          type="signup" active={isSignup}
+          title="¡Hola de nuevo!"
+          text="Para mantenerte conectado, por favor inicia sesión con tu información personal."
+          buttonText="INICIAR SESIÓN"
           onButtonClick={toggleView}
         />
 
-        {/* Sign Up Form - Left side when active */}
-        <AuthForm
-          type="signup"
-          active={isSignup}
-          title="Crear Cuenta"
-          onSubmit={handleSubmit}
-        >
-          <input
-            type="text"
-            name="username"
-            placeholder="Nombre de usuario"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="rounded-xl border-0 bg-slate-700 py-3.5 px-3 w-full text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-          />
-          <input
-            type="email"
-            name="email"
-            placeholder="Correo electrónico"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            className="rounded-xl border-0 bg-slate-700 py-3.5 px-3 w-full text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="rounded-xl border-0 bg-slate-700 py-3.5 px-3 w-full text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-          />
-          <button
-            type="submit"
-            className="border-0 py-3.5 px-0 rounded-4xl text-white w-40 bg-emerald-500/90 cursor-pointer font-semibold text-sm hover:bg-emerald-700 transition-all mt-2 shadow-lg shadow-emerald-500/20"
-          >
-            Registrarse
+        <AuthForm type="signup" active={isSignup} title="Crear Cuenta" onSubmit={handleSubmit}>
+          <div className="relative">
+            <User className="absolute left-3 top-4 w-4 h-4 text-slate-500" />
+            <input 
+              type="text" 
+              name="username" 
+              placeholder="Usuario" 
+              value={formData.username}
+              onChange={handleChange} 
+              autoComplete="username"
+              required
+              className="pl-10 pr-4 py-3.5 w-full bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+          </div>
+          <div className="relative">
+            <Mail className="absolute left-3 top-4 w-4 h-4 text-slate-500" />
+            <input 
+              type="email" 
+              name="email" 
+              placeholder="Email" 
+              value={formData.email}
+              onChange={handleChange} 
+              autoComplete="email"
+              required
+              className="pl-10 pr-4 py-3.5 w-full bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-4 w-4 h-4 text-slate-500" />
+            <input 
+              type="password" 
+              name="password" 
+              placeholder="Contraseña" 
+              value={formData.password}
+              onChange={handleChange} 
+              autoComplete="new-password"
+              required
+              className="pl-10 pr-4 py-3.5 w-full bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+          </div>
+          <button type="submit" className="mt-2 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2">
+            <span>REGISTRARSE</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </AuthForm>
 
-        {/* Sign In Hero - Right side when active */}
+        {/* Signin Content */}
         <Hero
-          type="signin"
-          active={!isSignup}
-          title="Hola, Amigo!"
-          text="Si no tienes una cuenta, regístrate aquí."
-          buttonText="Registrarse"
+          type="signin" active={!isSignup}
+          title="¿Eres nuevo?"
+          text="Regístrate y comienza a crear tus propios modelos de enfermedad hoy mismo."
+          buttonText="CREAR CUENTA"
           onButtonClick={toggleView}
         />
 
-        {/* Sign In Form - Right side when active */}
-        <AuthForm
-          type="signin"
-          active={!isSignup}
-          title="Iniciar sesión en tu cuenta"
-          onSubmit={handleSubmit}
-        >
-          <input
-            type="text"
-            name="username"
-            placeholder="Nombre de usuario"
-            value={formData.username}
-            onChange={handleChange}
-            required
-            className="rounded-xl border-0 bg-slate-700 py-3.5 px-3 w-full text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Contraseña"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            className="rounded-xl border-0 bg-slate-700 py-3.5 px-3 w-full text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-          />
-          <a
-            href="#"
-            className="text-xs text-slate-400 hover:text-emerald-400 transition-colors self-start font-medium mb-2"
-            onClick={(e) => e.preventDefault()}
+        <AuthForm type="signin" active={!isSignup} title="Iniciar Sesión" onSubmit={handleSubmit}>
+          <div className="relative">
+            <Mail className="absolute left-3 top-4 w-4 h-4 text-slate-500" />
+            <input 
+              type="text" 
+              name="username" 
+              placeholder="Email o Usuario" 
+              value={formData.username}
+              onChange={handleChange} 
+              autoComplete="username"
+              required
+              className="pl-10 pr-4 py-3.5 w-full bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-4 w-4 h-4 text-slate-500" />
+            <input 
+              type="password" 
+              name="password" 
+              placeholder="Contraseña" 
+              value={formData.password}
+              onChange={handleChange} 
+              autoComplete="current-password"
+              required
+              className="text-white pl-10 pr-4 py-3.5 w-full bg-slate-800 border border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all" 
+            />
+          </div>
+          <button 
+            type="button"
+            className="text-xs text-slate-500 hover:text-emerald-400 transition-colors w-fit font-medium"
           >
             ¿Olvidaste tu contraseña?
-          </a>
-          <button
-            type="submit"
-            className="border-0 py-3.5 px-0 rounded-4xl text-white w-40 bg-emerald-500/90 cursor-pointer font-semibold text-sm hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-500/20"
-          >
-            Iniciar sesión
+          </button>
+          <button type="submit" className="mt-2 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center space-x-2">
+            <span>ENTRAR</span>
+            <ArrowRight className="w-4 h-4" />
           </button>
         </AuthForm>
+
       </div>
+
+      {/* Footer Info */}
+      <p className="mt-8 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
+        Create Disease Model System v1.0
+      </p>
     </div>
   );
 };
