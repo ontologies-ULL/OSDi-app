@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 import HomePage from './pages/HomePage';
 import DiseasePage from './pages/DiseasePage';
-import DevelopmentPage from './pages/DevelopmentPage';
+import PopulationPage from './pages/PopulationPage';
+import InterventionsPage from './pages/InterventionsPage';
+import Navbar from './components/Navbar';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  const [user, setUser] = useState(null);
+  const [diseaseName, setDiseaseName] = useState('');
   
   // Estado compartido para Disease
   const [diseaseData, setDiseaseData] = useState({
@@ -21,25 +25,62 @@ function App() {
     }
   });
 
-  // Estado compartido para Development
-  const [developmentData, setDevelopmentData] = useState({
+  // Estado compartido para Population
+  const [populationData, setPopulationData] = useState({
     label: '',
     comment: '',
-    selectedClasses: ['Development'],
+    selectedClasses: ['PopulationAffected'],
     datatypeProperties: [],
     objectProperties: [],
-    developmentProperties: {
-      hasAge: '',
-      hasOnset: '',
-      hasStage: '',
-      hasSeverity: '',
-      hasProgression: '',
-      hasRiskFactor: ''
+    demographics: {
+      hasAgeRange: '',
+      hasGender: '',
+      hasEthnicity: '',
+      hasGeographicLocation: ''
+    },
+    epidemiology: {
+      hasPrevalence: '',
+      hasIncidence: '',
+      hasMortality: '',
+      hasMorbidity: ''
+    }
+  });
+
+  // Estado compartido para Interventions
+  const [interventionsData, setInterventionsData] = useState({
+    label: '',
+    comment: '',
+    selectedClasses: ['Intervention'],
+    datatypeProperties: [],
+    objectProperties: [],
+    interventionDetails: {
+      hasInterventionType: '',
+      hasDosage: '',
+      hasFrequency: '',
+      hasDuration: ''
+    },
+    outcomes: {
+      hasEfficacy: '',
+      hasSafetyProfile: '',
+      hasAdverseEvents: '',
+      hasQualityOfLife: ''
+    },
+    economicData: {
+      hasCostPerUnit: '',
+      hasTotalCost: '',
+      hasCostEffectiveness: '',
+      hasReimbursementStatus: ''
     }
   });
 
   const handleNavigate = (page) => {
     setCurrentPage(page);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    setUser(null);
+    setCurrentPage('home');
   };
 
   const renderPage = () => {
@@ -53,17 +94,28 @@ function App() {
             currentPage={currentPage}
             diseaseData={diseaseData}
             setDiseaseData={setDiseaseData}
-            developmentData={developmentData}
+            setDiseaseName={setDiseaseName}
           />
         );
-      case 'development':
+      case 'population':
         return (
-          <DevelopmentPage 
-            onNavigate={handleNavigate} 
+          <PopulationPage
+            onNavigate={handleNavigate}
             currentPage={currentPage}
             diseaseData={diseaseData}
-            developmentData={developmentData}
-            setDevelopmentData={setDevelopmentData}
+            populationData={populationData}
+            setPopulationData={setPopulationData}
+          />
+        );
+      case 'interventions':
+        return (
+          <InterventionsPage
+            onNavigate={handleNavigate}
+            currentPage={currentPage}
+            diseaseData={diseaseData}
+            populationData={populationData}
+            interventionsData={interventionsData}
+            setInterventionsData={setInterventionsData}
           />
         );
       default:
@@ -73,6 +125,14 @@ function App() {
 
   return (
     <div className="App">
+      {currentPage !== 'home' && (
+        <Navbar
+          currentPage={currentPage}
+          onNavigate={handleNavigate}
+          diseaseName={diseaseName}
+          onLogout={handleLogout}
+        />
+      )}
       {renderPage()}
     </div>
   );

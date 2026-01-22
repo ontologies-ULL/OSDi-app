@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Stethoscope, Share2 } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Stethoscope, Database, ShieldCheck, Share2, Info } from 'lucide-react';
 import OntologyGraph from '../components/OntologyGraph';
-import Navbar from '../components/Navbar';
-import { Database, ShieldCheck } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -23,7 +21,6 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Actualizar el estado compartido cuando cambian los datos del formulario
   useEffect(() => {
     setDiseaseData({
       label: formData.label,
@@ -35,26 +32,14 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
     });
   }, [formData, references, setDiseaseData]);
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleReferenceChange = (e) => {
-    setReferences({
-      ...references,
-      [e.target.name]: e.target.value
-    });
-  };
+  const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleReferenceChange = (e) => setReferences({ ...references, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     if (!formData.label) {
       setError('El nombre de la enfermedad es obligatorio');
       return;
     }
-
     setSaving(true);
     setError('');
     setSuccess(false);
@@ -77,250 +62,182 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
 
       const response = await fetch(`${API_BASE_URL}/ontology/individual`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
         setSuccess(true);
-        setTimeout(() => {
-          setSuccess(false);
-        }, 2000);
+        setTimeout(() => setSuccess(false), 2000);
       } else {
         const data = await response.json();
-        setError(data.detail || 'Error al crear la enfermedad');
+        setError(data.detail || 'Error al guardar la entidad clínica');
       }
     } catch (err) {
-      setError('Error conectando con el servidor. Asegúrate de que la API esté corriendo en http://localhost:8000');
+      setError('Error de conexión con el servidor.');
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Navbar */}
-      <Navbar currentPage={currentPage} onNavigate={onNavigate} />
-
-      {/* Mensajes */}
+    <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
+      
+      {/* Mensajes Flotantes */}
       {(error || success) && (
-        <div className="shrink-0 z-50">
-          {error && (
-            <div className="max-w-full mx-auto px-6 py-3">
-              <div className="bg-rose-50 border-l-4 border-rose-500 rounded-r-lg p-3 flex items-start shadow-sm">
-                <AlertCircle className="w-5 h-5 text-rose-600 mr-2 mt-0.5 shrink-0" />
-                <p className="text-rose-800 text-sm">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {success && (
-            <div className="max-w-full mx-auto px-6 py-3">
-              <div className="bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-3 flex items-start shadow-sm">
-                <CheckCircle className="w-5 h-5 text-emerald-600 mr-2 mt-0.5 shrink-0" />
-                <p className="text-emerald-800 text-sm font-medium">¡Enfermedad guardada exitosamente!</p>
-              </div>
-            </div>
-          )}
+        <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
+          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${
+            error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'
+          }`}>
+            {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+            <p className="text-sm font-bold">{error || 'Entidad clínica guardada con éxito'}</p>
+          </div>
         </div>
       )}
 
-      {/* Contenido Principal */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Panel Izquierdo - Formulario */}
-        <div className="w-1/2 flex flex-col bg-slate-200">
-          <div className="flex-1 overflow-y-auto p-8">
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header */}
-              <div className="bg-slate-900 rounded-2xl shadow-xl p-7 text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <Stethoscope className="w-7 h-7 text-emerald-400" />
-                    <h1 className="text-2xl font-bold">Enfermedad</h1>
-                  </div>
-                  <p className="text-slate-300 text-sm">
-                    Define las características principales de la enfermedad
-                  </p>
+      <div className="flex w-full p-8 gap-8 overflow-hidden">
+        
+        {/* PANEL IZQUIERDO: Formulario (Azul Clínico) */}
+        <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
+          <div className="max-w-2xl space-y-6">
+            
+            {/* Header con gradiente azul */}
+            <div className="bg-linear-to-br from-emerald-500 to-emerald-900 rounded-3xl p-8 text-white">
+              <div className="relative z-10">
+                <div className="flex items-center space-x-3 mb-2">
+                  <Stethoscope className="w-7 h-7 text-emerald-100" strokeWidth={2.5} />
+                  <h1 className="text-3xl font-bold tracking-tight">Enfermedad</h1>
                 </div>
+                <p className="text-emerald-100/80 text-sm font-medium">Define la identidad y codificación internacional de la patología</p>
               </div>
+              <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+            </div>
 
-              <div className="space-y-5">
+            {/* Datos Principales */}
+            <div className="space-y-4">
+              <div className="group">
+                <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nombre de la Enfermedad</label>
+                <input
+                  type="text"
+                  name="label"
+                  value={formData.label}
+                  onChange={handleInputChange}
+                  placeholder="ej: Esclerosis Múltiple Recurrente"
+                  className="w-full px-5 py-4 bg-white/80 backdrop-blur-sm border border-slate-300 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm text-slate-600"
+                />
+              </div>
+              <label className="block text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Descripción Clínica</label>
+              <textarea
+                name="comment"
+                value={formData.comment}
+                onChange={handleInputChange}
+                placeholder="Descripción clínica o criterios de diagnóstico..."
+                rows="3"
+                className="w-full px-5 py-4 bg-white/80 backdrop-blur-sm border border-slate-300 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all shadow-sm text-slate-600"
+              />
+            </div>
 
-                <div className="grid gap-5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Nombre de la Enfermedad
-                    </label>
-                    <input
-                      type="text"
-                      name="label"
-                      value={formData.label}
-                      onChange={handleInputChange}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      placeholder="ej: Diabetes Mellitus Tipo 2"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl ..."
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Descripción / Comentarios
-                    </label>
-                    <textarea
-                      name="comment"
-                      value={formData.comment}
-                      onChange={handleInputChange}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      rows="3"
-                      placeholder="Breve resumen de la enfermedad..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl ..."
-                    />
-                  </div>
+            {/* Bloque: Codificación y Referencias */}
+            <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-emerald-100 rounded-lg">
+                  <Database className="w-4 h-4 text-emerald-600" />
                 </div>
+                <h2 className="text-lg font-bold text-slate-800">Sistemas de Referencia</h2>
               </div>
-
-              {/* Bloque: Propiedades */}
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
-                <div className="flex items-center space-x-2">
-                  <Database className="w-5 h-5 text-slate-600" />
-                  <h2 className="text-md font-bold text-slate-800">Propiedades</h2>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">CIE-10 (ICD)</label>
+              
+              <div className="grid grid-cols-2 gap-6">
+                {[
+                  { name: 'hasRefToICD', label: 'CIE-10 (ICD)', ph: 'Cód. Diagnóstico' },
+                  { name: 'hasRefToSNOMED', label: 'SNOMED CT', ph: 'ID Concepto' },
+                  { name: 'hasRefToOMIM', label: 'OMIM', ph: 'Ref. Genética' },
+                  { name: 'hasRefToDO', label: 'Disease Ontology', ph: 'DOID:XXXX' }
+                ].map(field => (
+                  <div key={field.name} className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{field.label}</label>
                     <input
                       type="text"
-                      name="hasRefToICD"
-                      value={references.hasRefToICD}
+                      name={field.name}
+                      value={references[field.name]}
                       onChange={handleReferenceChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="Cód. Diagnóstico"
+                      placeholder={field.ph}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/5 outline-none transition-all"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">SNOMED CT</label>
-                    <input
-                      type="text"
-                      name="hasRefToSNOMED"
-                      value={references.hasRefToSNOMED}
-                      onChange={handleReferenceChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ID Concepto"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">OMIM</label>
-                    <input
-                      type="text"
-                      name="hasRefToOMIM"
-                      value={references.hasRefToOMIM}
-                      onChange={handleReferenceChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="Ref. Genética"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Disease Ontology</label>
-                    <input
-                      type="text"
-                      name="hasRefToDO"
-                      value={references.hasRefToDO}
-                      onChange={handleReferenceChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="DOID:XXXX"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Nota técnica */}
-              <div className="flex items-start space-x-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                <p className="text-xs text-emerald-800 leading-relaxed">
-                  <strong>Validación HEOR:</strong> Asegúrese de que los códigos vinculados coincidan con las bases de datos de reembolso locales para un cálculo de costes preciso.
-                </p>
-              </div>
-
-              {/* Botón Guardar - Flotante o Sticky al final del panel */}
-              <div className="pt-4">
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !formData.label}
-                  className="w-full bg-emerald-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:grayscale"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>{saving ? 'Procesando...' : 'Guardar Parámetros'}</span>
-                </button>
+                ))}
               </div>
             </div>
+
+            {/* Nota técnica azul */}
+            <div className="flex items-start space-x-3 p-5 bg-emerald-500/5 rounded-2xl border border-emerald-200 shadow-inner">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <p className="text-xs text-emerald-700 leading-relaxed font-medium italic">
+                <strong>Validación HEOR:</strong> Vincular códigos internacionales permite la interoperabilidad de datos y la estimación de costes basada en evidencia real (RWE).
+              </p>
+            </div>
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !formData.label}
+              className="w-full bg-linear-to-r from-emerald-600 to-emerald-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-emerald-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg shadow-emerald-200"
+            >
+              <Save className="w-5 h-5" />
+              <span className="text-lg">{saving ? 'Guardando...' : 'Finalizar Registro Clínico'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Panel Derecho - Grafo con fondo oscuro profesional */}
-        <div className="w-3/4 flex flex-col bg-slate-200 p-10 h-full">
-          <div className="flex flex-col h-full bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
-
-            {/* Header del Grafo - Estilo Instrumento de Medición */}
-            <div className="bg-slate-900 px-6 py-5 border-b border-slate-800 flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" /> {/* Indicador "Live" */}
+        {/* PANEL DERECHO: Grafo (Estilo Dark Glass) */}
+        <div className="w-3/4 flex flex-col h-full">
+          <div className="flex flex-col h-full rounded-[2.5rem] shadow-2xl border-2 border-emerald-500 overflow-hidden">
+            
+            {/* Header del Grafo */}
+            <div className="bg-linear-to-br from-emerald-50 to-white backdrop-blur-md px-8 py-6 border-b border-emerald-500 flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
                 <div>
-                  <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
-                    Mapa interactivo de la enfermedad
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-medium italic">
-                    Visualiza las diferentes relaciones entre los componentes clínicos.
-                  </p>
+                  <h2 className="text-xl font-bold text-slate-800 tracking-tight">Mapa Ontológico</h2>
+                  <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Visualización interactiva de relaciones clínicas</p>
                 </div>
               </div>
 
-              {/* Badge de estado del Grafo */}
-              <div className="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                <Share2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
-                  En vivo
-                </span>
+              <div className="bg-emerald-100 px-4 py-1.5 rounded-full border border-emerald-200 flex items-center space-x-2">
+                <Share2 className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">En Vivo</span>
               </div>
             </div>
 
-            {/* Área del Grafo con efecto de profundidad */}
-            <div className="flex-1 relative bg-slate-50 bg-size-[20px_20px]">
+            {/* Área del Grafo */}
+            <div className="flex-1 relative bg-emerald-100 backdrop-blur-sm">
               <div className="absolute inset-0 overflow-hidden">
                 <OntologyGraph
                   diseaseData={diseaseData}
                   developmentData={developmentData}
                 />
               </div>
-
-              {/* Overlay de viñeta para centrar la atención en el centro del grafo */}
-              <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.3)]" />
+              {/* Sombra interna para dar profundidad */}
+              <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.15)]" />
             </div>
 
-            {/* Footer del Grafo - Resumen de datos */}
-            <div className="bg-slate-900/50 px-6 py-3 border-t border-slate-800 flex justify-between items-center">
-              <div className="flex space-x-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-sm mr-2" /> Nodos completados
-                </span>
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-slate-600 rounded-sm mr-2" /> Nodos pendientes
-                </span>
+            {/* Legend / Footer del Grafo */}
+            <div className="bg-linear-to-r from-white to-emerald-50 px-8 py-4 border-t border-emerald-500 flex justify-between items-center">
+              <div className="flex space-x-8">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full" />
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase">Nodo Principal</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2.5 h-2.5 border-2 border-slate-800 rounded-full" />
+                  <span className="text-[10px] font-bold text-slate-800 uppercase">Dependencias</span>
+                </div>
               </div>
-              <button className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase">
-                Reiniciar mapa
+              <button className="flex items-center space-x-2 text-[10px] font-black text-emerald-600 hover:text-emerald-300 transition-colors uppercase tracking-widest">
+                <span>Centrar Vista</span>
               </button>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );
