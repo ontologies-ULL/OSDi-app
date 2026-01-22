@@ -250,7 +250,7 @@ function OntologyGraph({ diseaseData, developmentData }) {
         name: diseaseData?.label || '',
         description: diseaseData?.comment || '',
         properties: diseaseProperties,
-        color: '#3B82F6',
+        color: '#10B981',
       },
       position: { x: 100, y: 200 },
       draggable: true,

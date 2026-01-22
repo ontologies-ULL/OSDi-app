@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Pill, Share2 } from 'lucide-react';
-import OntologyGraph from '../components/OntologyGraph';
-import { Database, ShieldCheck, Activity } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Pill, Book, ShieldCheck, Table as TableIcon, Activity, TrendingDown } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -36,7 +34,6 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  // Actualizar el estado compartido cuando cambian los datos del formulario
   useEffect(() => {
     setInterventionsData({
       label: formData.label,
@@ -50,40 +47,16 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
     });
   }, [formData, interventionDetails, outcomes, economicData, setInterventionsData]);
 
-  const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleInterventionDetailsChange = (e) => {
-    setInterventionDetails({
-      ...interventionDetails,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleOutcomesChange = (e) => {
-    setOutcomes({
-      ...outcomes,
-      [e.target.name]: e.target.value
-    });
-  };
-
-  const handleEconomicDataChange = (e) => {
-    setEconomicData({
-      ...economicData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleDetailsChange = (e) => setInterventionDetails({ ...interventionDetails, [e.target.name]: e.target.value });
+  const handleOutcomesChange = (e) => setOutcomes({ ...outcomes, [e.target.name]: e.target.value });
+  const handleEconomicChange = (e) => setEconomicData({ ...economicData, [e.target.name]: e.target.value });
 
   const handleSave = async () => {
     if (!formData.label) {
       setError('El nombre de la intervención es obligatorio');
       return;
     }
-
     setSaving(true);
     setError('');
     setSuccess(false);
@@ -114,353 +87,234 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
 
       const response = await fetch(`${API_BASE_URL}/ontology/individual`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dataToSend),
       });
 
       if (response.ok) {
         setSuccess(true);
-        setTimeout(() => {
-          setSuccess(false);
-        }, 2000);
+        setTimeout(() => setSuccess(false), 2000);
       } else {
         const data = await response.json();
-        setError(data.detail || 'Error al crear la intervención');
+        setError(data.detail || 'Error al guardar la intervención');
       }
     } catch (err) {
-      setError('Error conectando con el servidor. Asegúrate de que la API esté corriendo en http://localhost:8000');
+      setError('Error de conexión.');
     } finally {
       setSaving(false);
     }
   };
 
+  const tableData = [
+    { category: 'General', property: 'Nombre', value: formData.label || '-' },
+    { category: 'Técnico', property: 'Tipo', value: interventionDetails.hasInterventionType || '-' },
+    { category: 'Técnico', property: 'Dosis', value: interventionDetails.hasDosage || '-' },
+    { category: 'Clínico', property: 'Eficacia', value: outcomes.hasEfficacy || '-' },
+    { category: 'Clínico', property: 'Seguridad', value: outcomes.hasSafetyProfile || '-' },
+    { category: 'Economía', property: 'C-Efectividad', value: economicData.hasCostEffectiveness || '-' },
+    { category: 'Economía', property: 'Reembolso', value: economicData.hasReimbursementStatus || '-' },
+  ];
+
   return (
-    <div className="h-screen flex flex-col">
+    <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Mensajes */}
+      {/* Mensajes Flotantes */}
       {(error || success) && (
-        <div className="shrink-0 z-50">
-          {error && (
-            <div className="max-w-full mx-auto px-6 py-3">
-              <div className="bg-rose-50 border-l-4 border-rose-500 rounded-r-lg p-3 flex items-start shadow-sm">
-                <AlertCircle className="w-5 h-5 text-rose-600 mr-2 mt-0.5 shrink-0" />
-                <p className="text-rose-800 text-sm">{error}</p>
-              </div>
-            </div>
-          )}
-
-          {success && (
-            <div className="max-w-full mx-auto px-6 py-3">
-              <div className="bg-emerald-50 border-l-4 border-emerald-500 rounded-r-lg p-3 flex items-start shadow-sm">
-                <CheckCircle className="w-5 h-5 text-emerald-600 mr-2 mt-0.5 shrink-0" />
-                <p className="text-emerald-800 text-sm font-medium">¡Intervención guardada exitosamente!</p>
-              </div>
-            </div>
-          )}
+        <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
+          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-rose-500 text-rose-800'
+            }`}>
+            {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+            <p className="text-sm font-bold">{error || 'Intervención registrada correctamente'}</p>
+          </div>
         </div>
       )}
 
-      {/* Contenido Principal */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Panel Izquierdo - Formulario */}
-        <div className="w-1/2 flex flex-col bg-slate-200">
-          <div className="flex-1 overflow-y-auto p-8">
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header */}
-              <div className="bg-slate-900 rounded-2xl shadow-xl p-7 text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <Pill className="w-7 h-7 text-emerald-400" />
-                    <h1 className="text-2xl font-bold">Intervenciones y Efectos</h1>
-                  </div>
-                  <p className="text-slate-300 text-sm">
-                    Define las intervenciones terapéuticas y sus resultados clínicos y económicos
-                  </p>
-                </div>
+      <div className="flex w-full p-8 gap-8 overflow-hidden">
+
+        {/* PANEL IZQUIERDO: Formulario (Paleta Rose) */}
+        <div className="w-1/2 overflow-y-auto custom-scrollbar">
+          <div className="max-w-3xl space-y-6 pb-12">
+
+            <div className="bg-linear-to-br from-rose-600 via-rose-700 to-rose-900 rounded-3xl p-8 text-white">
+              <div className="flex items-center space-x-3 mb-2">
+                <Pill className="w-7 h-7" strokeWidth={2.5} />
+                <h1 className="text-3xl font-bold">Intervenciones y sus efectos</h1>
               </div>
+              <p className="text-rose-50/80 text-sm font-medium">Define los tratamientos y analiza sus resultados HEOR</p>
+            </div>
 
-              <div className="space-y-5">
-                <div className="grid gap-5">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Nombre de la Intervención
-                    </label>
-                    <input
-                      type="text"
-                      name="label"
-                      value={formData.label}
-                      onChange={handleInputChange}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      placeholder="ej: Metformina 850mg"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                      Descripción / Comentarios
-                    </label>
-                    <textarea
-                      name="comment"
-                      value={formData.comment}
-                      onChange={handleInputChange}
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      rows="3"
-                      placeholder="Breve resumen de la intervención..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent outline-none transition-all"
-                    />
-                  </div>
-                </div>
+            {/* Información General */}
+            <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-rose-100 rounded-lg">
+                  <Book className="w-4 h-4 text-rose-600" />                </div>
+                <h2 className="text-lg font-bold text-slate-800">General</h2>
               </div>
-
-              {/* Bloque: Detalles de la Intervención */}
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
-                <div className="flex items-center space-x-2">
-                  <Pill className="w-5 h-5 text-slate-600" />
-                  <h2 className="text-md font-bold text-slate-800">Detalles de la Intervención</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre <strong>*</strong></label>
+                  <input
+                    type="text"
+                    name="label"
+                    value={formData.label}
+                    onChange={handleInputChange}
+                    placeholder="ej: Población con riesgo de enfermedad X"
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Tipo de Intervención</label>
-                    <input
-                      type="text"
-                      name="hasInterventionType"
-                      value={interventionDetails.hasInterventionType}
-                      onChange={handleInterventionDetailsChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Farmacológica, Quirúrgica"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Dosificación</label>
-                    <input
-                      type="text"
-                      name="hasDosage"
-                      value={interventionDetails.hasDosage}
-                      onChange={handleInterventionDetailsChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: 850mg"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Frecuencia</label>
-                    <input
-                      type="text"
-                      name="hasFrequency"
-                      value={interventionDetails.hasFrequency}
-                      onChange={handleInterventionDetailsChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: 2 veces al día"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Duración</label>
-                    <input
-                      type="text"
-                      name="hasDuration"
-                      value={interventionDetails.hasDuration}
-                      onChange={handleInterventionDetailsChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Tratamiento crónico"
-                    />
-                  </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción <strong>*</strong></label>
+                  <textarea
+                    name="comment"
+                    value={formData.comment}
+                    onChange={handleInputChange}
+                    placeholder="ej: Población en España con riesgo de contraer la enfermedad X debido a factores Y y Z."
+                    rows="2"
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm resize-none"
+                  />
                 </div>
-              </div>
-
-              {/* Bloque: Resultados Clínicos */}
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
-                <div className="flex items-center space-x-2">
-                  <Activity className="w-5 h-5 text-slate-600" />
-                  <h2 className="text-md font-bold text-slate-800">Resultados Clínicos</h2>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Eficacia</label>
-                    <input
-                      type="text"
-                      name="hasEfficacy"
-                      value={outcomes.hasEfficacy}
-                      onChange={handleOutcomesChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Reducción HbA1c 1.5%"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Perfil de Seguridad</label>
-                    <input
-                      type="text"
-                      name="hasSafetyProfile"
-                      value={outcomes.hasSafetyProfile}
-                      onChange={handleOutcomesChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Bien tolerado"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Eventos Adversos</label>
-                    <input
-                      type="text"
-                      name="hasAdverseEvents"
-                      value={outcomes.hasAdverseEvents}
-                      onChange={handleOutcomesChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Náuseas 5-10%"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Calidad de Vida</label>
-                    <input
-                      type="text"
-                      name="hasQualityOfLife"
-                      value={outcomes.hasQualityOfLife}
-                      onChange={handleOutcomesChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Mejora moderada EQ-5D"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloque: Datos Económicos */}
-              <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-6">
-                <div className="flex items-center space-x-2">
-                  <Database className="w-5 h-5 text-slate-600" />
-                  <h2 className="text-md font-bold text-slate-800">Datos Económicos</h2>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Coste por Unidad</label>
-                    <input
-                      type="text"
-                      name="hasCostPerUnit"
-                      value={economicData.hasCostPerUnit}
-                      onChange={handleEconomicDataChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: 0.15€ por comprimido"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Coste Total</label>
-                    <input
-                      type="text"
-                      name="hasTotalCost"
-                      value={economicData.hasTotalCost}
-                      onChange={handleEconomicDataChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: 109€ anuales"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Coste-Efectividad</label>
-                    <input
-                      type="text"
-                      name="hasCostEffectiveness"
-                      value={economicData.hasCostEffectiveness}
-                      onChange={handleEconomicDataChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: 15,000€/QALY"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-400 uppercase">Estado Reembolso</label>
-                    <input
-                      type="text"
-                      name="hasReimbursementStatus"
-                      value={economicData.hasReimbursementStatus}
-                      onChange={handleEconomicDataChange}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-emerald-500 outline-none"
-                      placeholder="ej: Financiado SNS"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Nota técnica */}
-              <div className="flex items-start space-x-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-                <p className="text-xs text-emerald-800 leading-relaxed">
-                  <strong>Validación HEOR:</strong> Los datos de eficacia y coste-efectividad deben provenir de estudios clínicos controlados y análisis económicos validados según guías locales.
-                </p>
-              </div>
-
-              {/* Botón Guardar */}
-              <div className="pt-4">
-                <button
-                  onClick={handleSave}
-                  disabled={saving || !formData.label}
-                  className="w-full bg-emerald-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:grayscale"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>{saving ? 'Procesando...' : 'Guardar Parámetros'}</span>
-                </button>
               </div>
             </div>
+
+            {/* Secciones del Formulario */}
+            {[
+              {
+                title: 'Detalles Técnicos', icon: Pill, state: interventionDetails, handler: handleDetailsChange, fields: [
+                  { name: 'hasInterventionType', label: 'Tipo', ph: 'Farmacológica...' },
+                  { name: 'hasDosage', label: 'Dosis', ph: '850mg' },
+                  { name: 'hasFrequency', label: 'Frecuencia', ph: '2/día' },
+                  { name: 'hasDuration', label: 'Duración', ph: 'Crónico' }
+                ]
+              },
+              {
+                title: 'Resultados Clínicos', icon: Activity, state: outcomes, handler: handleOutcomesChange, fields: [
+                  { name: 'hasEfficacy', label: 'Eficacia', ph: 'HbA1c -1.5%' },
+                  { name: 'hasSafetyProfile', label: 'Seguridad', ph: 'Favorable' },
+                  { name: 'hasAdverseEvents', label: 'Efectos Adv.', ph: 'Náuseas' },
+                  { name: 'hasQualityOfLife', label: 'Calidad Vida', ph: 'Mejora EQ-5D' }
+                ]
+              },
+              {
+                title: 'Análisis Económico', icon: TrendingDown, state: economicData, handler: handleEconomicChange, fields: [
+                  { name: 'hasCostPerUnit', label: 'Coste Ud.', ph: '0.15€' },
+                  { name: 'hasTotalCost', label: 'Coste Total', ph: '109€/año' },
+                  { name: 'hasCostEffectiveness', label: 'C-Efectividad', ph: '15k/QALY' },
+                  { name: 'hasReimbursementStatus', label: 'Reembolso', ph: 'SNS Financiado' }
+                ]
+              }
+            ].map((section, idx) => (
+              <div key={idx} className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-2 bg-rose-100 rounded-lg">
+                    <section.icon className="w-4 h-4 text-rose-700" />
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800">{section.title}</h2>
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                  {section.fields.map(field => (
+                    <div key={field.name} className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{field.label}</label>
+                      <input
+                        type="text"
+                        name={field.name}
+                        value={section.state[field.name]}
+                        onChange={section.handler}
+                        placeholder={field.ph}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={handleSave}
+              disabled={saving || !formData.label}
+              className="w-full bg-linear-to-r from-rose-600 via-rose-700 to-rose-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-rose-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3"
+            >
+              <Save className="w-5 h-5" />
+              <span className="text-lg">{saving ? 'Registrando...' : 'Guardar Parámetros'}</span>
+            </button>
           </div>
         </div>
 
-        {/* Panel Derecho - Grafo */}
-        <div className="w-3/4 flex flex-col bg-slate-200 p-10 h-full">
-          <div className="flex flex-col h-full bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 overflow-hidden">
-            <div className="bg-slate-900 px-6 py-5 border-b border-slate-800 flex justify-between items-center">
-              <div className="flex items-center space-x-3">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                <div>
-                  <h2 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
-                    Mapa interactivo de la enfermedad
-                  </h2>
-                  <p className="text-[11px] text-slate-500 font-medium italic">
-                    Visualiza las diferentes relaciones entre los componentes clínicos.
-                  </p>
+        {/* PANEL DERECHO: Tabla (Rose / White Style) */}
+        <div className="w-1/2 flex flex-col overflow-hidden">
+          <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-rose-500 overflow-hidden">
+
+            <div className="p-8 bg-linear-to-r from-rose-50 to-white shrink-0">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 bg-rose-600 rounded-2xl shadow-lg shadow-rose-200">
+                    <TableIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">Tabla de la Interveción y sus efectos</h2>
+                    <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest">Vista previa de los detalles de la intervención y sus efectos asociados.</p>
+                  </div>
+                </div>
+                <div className="bg-rose-100 px-4 py-1.5 rounded-full border border-rose-200 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-rose-700 rounded-full animate-pulse" />
+                  <span className="text-[10px] font-bold text-rose-700 uppercase tracking-widest">En vivo</span>
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-                <Share2 className="w-3 h-3 text-emerald-400" />
-                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
-                  En vivo
-                </span>
+            <div className="flex-1 overflow-y-auto px-8 pt-6 custom-scrollbar">
+              <div className="space-y-2">
+                <div className="grid grid-cols-12 px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  <div className="col-span-3">Categoría</div>
+                  <div className="col-span-4">Atributo</div>
+                  <div className="col-span-5">Valor</div>
+                </div>
+
+                {tableData.map((row, idx) => (
+                  <div key={idx} className="grid grid-cols-12 items-center bg-slate-50/50 hover:bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 p-4 rounded-2xl border border-slate-200/50">
+                    <div className="col-span-3">
+                      <span className="px-2 py-1 rounded-lg text-[10px] font-black uppercase bg-rose-100 text-rose-700">
+                        {row.category}
+                      </span>
+                    </div>
+                    <div className="col-span-4 text-sm font-bold text-slate-400 tracking-tight">
+                      {row.property}
+                    </div>
+                    <div className={`col-span-5 text-sm font-semibold ${row.value === '-' ? 'text-slate-300 italic' : 'text-slate-800'
+                      }`}>
+                      {row.value}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="flex-1 relative bg-slate-50 bg-size-[20px_20px]">
-              <div className="absolute inset-0 overflow-hidden">
-                <OntologyGraph
-                  diseaseData={diseaseData}
-                  populationData={populationData}
-                  interventionsData={interventionsData}
-                  developmentData={developmentData}
-                />
-              </div>
-              <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.3)]" />
-            </div>
-
-            <div className="bg-slate-900/50 px-6 py-3 border-t border-slate-800 flex justify-between items-center">
-              <div className="flex space-x-6 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-emerald-500 rounded-sm mr-2" /> Nodos completados
-                </span>
-                <span className="flex items-center">
-                  <div className="w-2 h-2 bg-slate-600 rounded-sm mr-2" /> Nodos pendientes
-                </span>
-              </div>
-              <button className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors uppercase">
-                Reiniciar mapa
-              </button>
+            <div className="px-8 py-4 bg-linear-to-r from-white to-rose-50 shrink-0">
+              <p className="text-[10px] text-rose-600 font-medium text-center tracking-widest italic">
+                Esta tabla muestra una vista previa de los campos acerca de la intervención y sus efectos.
+              </p>
             </div>
           </div>
         </div>
       </div>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(226, 232, 240, 0.3);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          /* Color Rose-600 con opacidad */
+          background: rgba(225, 29, 72, 0.3); 
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          /* Color Rose-700 con más opacidad */
+          background: rgba(190, 18, 60, 0.5); 
+        }
+      `}</style>
     </div>
   );
 }
