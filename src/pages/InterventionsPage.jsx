@@ -284,7 +284,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
-            <div className="bg-gradient-to-br from-rose-600 via-rose-700 to-rose-900 rounded-3xl p-8 text-white">
+            <div className="bg-linear-to-br from-rose-600 via-rose-700 to-rose-900 rounded-3xl p-8 text-white">
               <div className="flex items-center space-x-3 mb-2">
                 <Pill className="w-7 h-7" strokeWidth={2.5} />
                 <h1 className="text-3xl font-bold">Intervenciones y sus efectos</h1>
@@ -656,7 +656,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
             <button
               onClick={handleSave}
               disabled={saving || !formData.label}
-              className="w-full bg-gradient-to-r from-rose-600 via-rose-700 to-rose-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-rose-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3"
+              className="w-full bg-linear-to-r from-rose-600 via-rose-700 to-rose-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-rose-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3"
             >
               <Save className="w-5 h-5" />
               <span className="text-lg">{saving ? 'Registrando...' : 'Guardar Intervención'}</span>
@@ -668,7 +668,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-rose-500 overflow-hidden">
 
-            <div className="p-8 bg-gradient-to-r from-rose-50 to-white shrink-0">
+            <div className="p-8 bg-linear-to-r from-rose-50 to-white shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-rose-600 rounded-2xl shadow-lg shadow-rose-200">
