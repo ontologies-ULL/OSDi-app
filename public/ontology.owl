@@ -2145,7 +2145,7 @@ Examples:
     
 
 
-    <!-- https://w3id.org/ontologies-ULL/OSDi#isAssessedIntervention -->
+    <!-- https://w3id.org/ontologies-ULL/OSDi#isIntervention -->
 
 
     <owl:DatatypeProperty rdf:about="https://w3id.org/ontologies-ULL/OSDi#isAssessedIntervention">

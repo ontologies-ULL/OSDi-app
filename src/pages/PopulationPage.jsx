@@ -10,8 +10,8 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
   });
 
   const [demographics, setDemographics] = useState({
-    age: populationData.demographics?.age || '0',
-    minAge: populationData.demographics?.minAge || '0',
+    age: populationData.demographics?.age || '',
+    minAge: populationData.demographics?.minAge || '',
     femaleProportion: populationData.demographics?.femaleProportion || '',
     geographicLocation: populationData.demographics?.geographicLocation || '',
     populationSize: populationData.demographics?.populationSize || ''
