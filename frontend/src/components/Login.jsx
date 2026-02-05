@@ -227,7 +227,7 @@ export const Login = ({ onLogin }) => {
 
       {/* Footer Info */}
       <p className="mt-8 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-        Create Disease Model System v1.0
+        Creación de modelos de enfermedades v1.0
       </p>
     </div>
   );

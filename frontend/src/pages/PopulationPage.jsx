@@ -276,7 +276,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Book className="w-4 h-4 text-blue-600" />                </div>
-                <h2 className="text-lg font-bold text-slate-800">General</h2>
+                <h2 className="text-lg font-bold text-slate-800">Información General</h2>
               </div>
               <div className="space-y-4">
                 <div>
