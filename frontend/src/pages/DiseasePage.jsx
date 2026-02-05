@@ -4,7 +4,7 @@ import OntologyGraph from '../components/OntologyGraph';
 
 const API_BASE_URL = 'http://localhost:8000';
 
-function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, developmentData }) {
+function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, setDiseaseName, developmentData }) {
   const [formData, setFormData] = useState({
     label: diseaseData.label || '',
     comment: diseaseData.comment || '',
@@ -30,6 +30,9 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
       objectProperties: [],
       references: references
     });
+    if (setDiseaseName) {
+      setDiseaseName(formData.label);
+    }
   }, [formData, references, setDiseaseData]);
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -99,7 +102,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
         
         {/* PANEL IZQUIERDO: Formulario (Azul Clínico) */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
-          <div className="max-w-2xl space-y-6">
+          <div className="max-w-3xl space-y-6">
             
             {/* Header con gradiente azul */}
             <div className="bg-linear-to-br from-emerald-500 to-emerald-900 rounded-3xl p-8 text-white">
@@ -110,7 +113,6 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
                 </div>
                 <p className="text-emerald-100/80 text-sm font-medium">Define la identidad y codificación internacional de la patología</p>
               </div>
-              <div className="absolute -right-4 -top-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
             </div>
 
             {/* Datos Principales */}
@@ -237,8 +239,28 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, dev
             </div>
           </div>
         </div>
-
       </div>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+              
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(226, 232, 240, 0.3);
+          border-radius: 10px;
+        }
+              
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          /* Emerald-500 con opacidad */
+          background: rgba(16, 185, 129, 0.4); 
+          border-radius: 10px;
+        }
+              
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          /* Emerald-600 (más oscuro) con más opacidad */
+          background: rgba(5, 150, 105, 0.6); 
+        }
+      `}</style>
     </div>
   );
 }

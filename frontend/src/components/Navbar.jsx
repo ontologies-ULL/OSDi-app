@@ -14,7 +14,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
     { id: 'home', label: 'Inicio', icon: Home },
     { id: 'disease', label: 'Enfermedad', icon: Stethoscope, hasDropdown: true },
     { id: 'population', label: 'Población', icon: TrendingUp },
-    { id: 'interventions', label: 'Intervenciones', icon: Pill}
+    { id: 'interventions', label: 'Intervenciones', icon: Pill }
   ];
 
   const diseaseDropdownOptions = [
@@ -53,7 +53,13 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
       setSaveStatus('loading');
       let filename;
       if (diseaseName && diseaseName.trim() !== '') {
-        filename = diseaseName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_-]/g, '');
+        filename = diseaseName
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')                      // ✅ Descompone caracteres con tildes
+          .replace(/[\u0300-\u036f]/g, '')       // ✅ Elimina los diacríticos (tildes)
+          .replace(/\s+/g, '_')                  // Espacios → guiones bajos
+          .replace(/[^a-z0-9_-]/g, '');          // Elimina otros caracteres especiales
       }
       const url = filename
         ? `${API_BASE_URL}/ontology/save?format=owl&filename=${filename}`
@@ -108,7 +114,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
             <div className="flex-1 flex items-center">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-slate-500/10 rounded-lg">
-                    <Activity className="w-6 h-6 text-slate-400" strokeWidth={2.5} />
+                  <Activity className="w-6 h-6 text-slate-400" strokeWidth={2.5} />
                 </div>
                 <div>
                   <h1 className="text-xl font-bold text-white tracking-tight">OSDI app</h1>
@@ -122,14 +128,14 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentPage === item.id;
-                
+
                 return (
                   <div key={item.id} className="relative" ref={item.hasDropdown ? dropdownRef : null}>
                     <button
                       onClick={item.hasDropdown ? (e) => { e.stopPropagation(); setShowDiseaseDropdown(!showDiseaseDropdown); } : () => handleNavClick(item.id)}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
-                        ${isActive 
-                          ? 'bg-slate-800 text-white border border-slate-700' 
+                        ${isActive
+                          ? 'bg-slate-800 text-white border border-slate-700'
                           : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
                     >
                       <Icon className="w-4 h-4" />
@@ -163,9 +169,9 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
                 onClick={handleSaveProject}
                 disabled={saveStatus === 'loading'}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all
-                  ${saveStatus === 'success' 
-                    ? 'border-indigo-500/50 text-indigo-400 bg-indigo-500/5' 
-                    : 'border-slate-700 text-slate-300 hover:bg-slate-800 hover:border-slate-600 active:scale-95'}
+                  ${saveStatus === 'success'
+                    ? 'border-emerald-500/50 text-emerald-400 bg-emerald-500/5'
+                    : 'border-slate-700 text-slate-300 hover:bg-slate-700/50 hover:border-slate-600 active:scale-95'}
                 `}
               >
                 <Save className={`w-4 h-4 ${saveStatus === 'loading' ? 'animate-pulse' : ''}`} />
@@ -195,7 +201,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
               </div>
               <h3 className="text-lg font-bold text-white">¿Estás seguro?</h3>
             </div>
-            
+
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
               Los cambios que no hayas guardado se perderán permanentemente al realizar esta acción.
             </p>

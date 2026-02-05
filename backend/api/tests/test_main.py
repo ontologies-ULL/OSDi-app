@@ -6,7 +6,7 @@ import tempfile
 
 # Importar la aplicación (asumiendo que tu archivo se llama main.py)
 # Si tiene otro nombre, cambia el import
-from main import app
+from backend.api.src.main import app
 
 client = TestClient(app)
 
