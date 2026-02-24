@@ -1,28 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Home, Activity, TrendingUp, AlertTriangle, X, Stethoscope, Save, Pill, ChevronDown, LogOut } from 'lucide-react';
+
+const API_BASE_URL = 'http://localhost:8000';
+
+const navItems = [
+  { id: 'home', label: 'Inicio', icon: Home },
+  { id: 'disease', label: 'Enfermedad', icon: Stethoscope, hasDropdown: true },
+  { id: 'population', label: 'Población', icon: TrendingUp },
+  { id: 'interventions', label: 'Intervenciones', icon: Pill }
+];
+
+const diseaseDropdownOptions = [
+  { id: 'disease', label: 'Enfermedad', clickable: true },
+  { id: 'progression', label: 'Progresión', clickable: false },
+  { id: 'development', label: 'Desarrollo', clickable: false },
+  { id: 'stage', label: 'Etapa', clickable: false }
+];
 
 function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
   const [showDiseaseDropdown, setShowDiseaseDropdown] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [projectName, setProjectName] = useState('');
   const dropdownRef = useRef(null);
-
-  const API_BASE_URL = 'http://localhost:8000';
-
-  const navItems = [
-    { id: 'home', label: 'Inicio', icon: Home },
-    { id: 'disease', label: 'Enfermedad', icon: Stethoscope, hasDropdown: true },
-    { id: 'population', label: 'Población', icon: TrendingUp },
-    { id: 'interventions', label: 'Intervenciones', icon: Pill }
-  ];
-
-  const diseaseDropdownOptions = [
-    { id: 'disease', label: 'Enfermedad', clickable: true },
-    { id: 'progression', label: 'Progresión', clickable: false },
-    { id: 'development', label: 'Desarrollo', clickable: false },
-    { id: 'stage', label: 'Etapa', clickable: false }
-  ];
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -36,24 +38,31 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showDiseaseDropdown]);
 
-  const handleClearOntology = async () => {
+  // Inicializar el nombre del proyecto con el nombre de la enfermedad
+  useEffect(() => {
+    if (diseaseName && diseaseName.trim() !== '') {
+      setProjectName(diseaseName);
+    }
+  }, [diseaseName]);
+
+  const handleClearOntology = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/ontology/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
-  };
+  }, []);
 
-  const handleSaveProject = async () => {
+  const handleSaveProject = useCallback(async () => {
     try {
       setSaveStatus('loading');
       let filename;
-      if (diseaseName && diseaseName.trim() !== '') {
-        filename = diseaseName
+      if (projectName && projectName.trim() !== '') {
+        filename = projectName
           .trim()
           .toLowerCase()
           .normalize('NFD')                      // ✅ Descompone caracteres con tildes
@@ -69,32 +78,36 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
 
       if (response.ok) {
         setSaveStatus('success');
-        setTimeout(() => setSaveStatus(null), 3000);
+        setShowSaveModal(false);
+        // Redirigir al home inmediatamente
+        onNavigate('home');
+        // Limpiar el estado después de navegar
+        setTimeout(() => setSaveStatus(null), 2000);
       } else {
         setSaveStatus('error');
         setTimeout(() => setSaveStatus(null), 3000);
       }
-    } catch (error) {
+    } catch {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus(null), 3000);
     }
-  };
+  }, [projectName, onNavigate]);
 
-  const handleNavClick = (pageId) => {
+  const handleNavClick = useCallback((pageId) => {
     if (pageId === 'home' && currentPage !== 'home') {
       setPendingAction(() => () => onNavigate(pageId));
       setShowConfirmModal(true);
     } else {
       onNavigate(pageId);
     }
-  };
+  }, [currentPage, onNavigate]);
 
-  const handleFinalizarSesion = () => {
+  const handleFinalizarSesion = useCallback(() => {
     setPendingAction('logout');
     setShowConfirmModal(true);
-  };
+  }, []);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     await handleClearOntology();
     if (pendingAction === 'logout') {
       if (onLogout) onLogout();
@@ -103,7 +116,15 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
     }
     setShowConfirmModal(false);
     setPendingAction(null);
-  };
+  }, [handleClearOntology, pendingAction, onLogout]);
+
+  const handleOpenSaveModal = useCallback(() => {
+    // Si no hay nombre, usar el nombre de la enfermedad o vacío
+    if (!projectName && diseaseName) {
+      setProjectName(diseaseName);
+    }
+    setShowSaveModal(true);
+  }, [projectName, diseaseName]);
 
   return (
     <>
@@ -135,7 +156,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
                       onClick={item.hasDropdown ? (e) => { e.stopPropagation(); setShowDiseaseDropdown(!showDiseaseDropdown); } : () => handleNavClick(item.id)}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
                         ${isActive
-                          ? 'bg-slate-800 text-white border border-slate-700'
+                          ? 'bg-slate-800 text-white border border-slate-400'
                           : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
                     >
                       <Icon className="w-4 h-4" />
@@ -166,7 +187,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
             <div className="flex-1 flex items-center justify-end space-x-4">
               {/* Botón Guardar - Estilo Integrado */}
               <button
-                onClick={handleSaveProject}
+                onClick={handleOpenSaveModal}
                 disabled={saveStatus === 'loading'}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-all
                   ${saveStatus === 'success'
@@ -190,6 +211,82 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
           </div>
         </div>
       </nav>
+
+      {/* Modal de Guardar Proyecto */}
+      {showSaveModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-md w-full mx-4 border border-slate-800 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-slate-500/10 rounded-full">
+                  <Save className="w-5 h-5 text-slate-200" />
+                </div>
+                <h3 className="text-lg font-bold text-white">Guardar Proyecto</h3>
+              </div>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="p-1 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+
+            <p className="text-slate-400 text-sm leading-relaxed mb-4">
+              Introduce un nombre para tu proyecto. Se guardará en formato OWL.
+            </p>
+
+            <div className="mb-6">
+              <label htmlFor="projectName" className="block text-sm font-medium text-slate-300 mb-2">
+                Nombre del proyecto
+              </label>
+              <input
+                id="projectName"
+                type="text"
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                placeholder="Ej: diabetes_tipo_2"
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && projectName.trim()) {
+                    handleSaveProject();
+                  }
+                }}
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Los caracteres especiales y espacios se convertirán automáticamente
+              </p>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg font-semibold text-sm transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveProject}
+                disabled={!projectName.trim() || saveStatus === 'loading'}
+                className={`flex-1 px-4 py-2 rounded-lg font-semibold text-sm transition-all
+                  ${!projectName.trim() || saveStatus === 'loading'
+                    ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20'
+                  }`}
+              >
+                {saveStatus === 'loading' ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+
+            {saveStatus === 'error' && (
+              <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/50 rounded-lg">
+                <p className="text-rose-400 text-sm">
+                  Error al guardar el proyecto. Inténtalo de nuevo.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal de Confirmación */}
       {showConfirmModal && (

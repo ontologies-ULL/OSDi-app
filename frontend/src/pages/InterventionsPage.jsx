@@ -1,7 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Pill, Book, ShieldCheck, Table as TableIcon, DollarSign, Zap, Sparkles } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Pill, Book, ShieldCheck, Target, Table as TableIcon, DollarSign, Zap, Sparkles, Settings, Plus } from 'lucide-react';
+import ToggleButton from '../components/ToggleButton';
+import CostCard from '../components/CostCard';
+import UtilityCard from '../components/UtilityCard';
+import DetectionParameterCard from '../components/DetectionParameterCard';
+import useExpandableList from '../hooks/useExpandableList';
+import useSaveStatus from '../hooks/useSaveStatus';
+import { createIndividual, buildDistribution } from '../api/ontology';
 
-const API_BASE_URL = 'http://localhost:8000';
+// ── Empty templates ───────────────────────────────────────────────────────────
+const EMPTY_COST = {
+  name: '', value: '', currency: 'Currency_Euro', appliesOneTime: false,
+  source: '', year: new Date().getFullYear().toString(),
+  parameterType: 'Deterministic', distributionType: 'Normal',
+  lowerBound: '', upperBound: '', standardDeviation: '',
+  alpha: '', beta: '', lambda: '', mean: '',
+  confidenceInterval: '95', sampleSize: ''
+};
+
+const EMPTY_UTILITY = {
+  name: '', value: '', isDisutility: false, appliesOneTime: false,
+  calculationMethod: '', source: '',
+  parameterType: 'Deterministic', distributionType: 'Beta',
+  lowerBound: '', upperBound: '', standardDeviation: '',
+  alpha: '', beta: '', lambda: '', mean: '',
+  confidenceInterval: '95', sampleSize: ''
+};
+
+const EMPTY_DETECTION_PARAM = {
+  name: '', value: '', source: '',
+  parameterType: 'Deterministic', distributionType: 'Beta',
+  lowerBound: '', upperBound: '', standardDeviation: '',
+  alpha: '', beta: '', lambda: '', mean: '',
+  confidenceInterval: '95', sampleSize: ''
+};
+
+const EMPTY_EFFECT = {
+  effectType: 'DI_Probability', value: '', modifiesWhat: '', description: '',
+  parameterType: 'Deterministic', distributionType: 'Normal',
+  lowerBound: '', upperBound: '', standardDeviation: '',
+  alpha: '', beta: '', mean: '', confidenceInterval: '95', sampleSize: ''
+};
 
 function InterventionsPage({ onNavigate, currentPage, diseaseData, populationData, interventionsData, setInterventionsData, developmentData }) {
   const [formData, setFormData] = useState({
@@ -11,267 +50,206 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
     isAssessed: interventionsData.isAssessed !== undefined ? interventionsData.isAssessed : true
   });
 
-  const [costData, setCostData] = useState({
-    value: interventionsData.costData?.value || '',
-    currency: interventionsData.costData?.currency || 'Currency_Euro',
-    appliesOneTime: interventionsData.costData?.appliesOneTime !== undefined ? interventionsData.costData.appliesOneTime : false,
-    source: interventionsData.costData?.source || '',
-    year: interventionsData.costData?.year || new Date().getFullYear().toString()
-  });
+  const [costsData,         expandedCosts,         costHandlers]        = useExpandableList(interventionsData.costsData,         EMPTY_COST);
+  const [utilitiesData,     expandedUtilities,     utilityHandlers]     = useExpandableList(interventionsData.utilitiesData,     EMPTY_UTILITY);
+  const [sensitivitiesData, expandedSensitivities, sensitivityHandlers] = useExpandableList(interventionsData.sensitivitiesData, EMPTY_DETECTION_PARAM);
+  const [specificitiesData, expandedSpecificities, specificityHandlers] = useExpandableList(interventionsData.specificitiesData, EMPTY_DETECTION_PARAM);
 
-  const [utilityData, setUtilityData] = useState({
-    value: interventionsData.utilityData?.value || '',
-    isDisutility: interventionsData.utilityData?.isDisutility !== undefined ? interventionsData.utilityData.isDisutility : false,
-    appliesOneTime: interventionsData.utilityData?.appliesOneTime !== undefined ? interventionsData.utilityData.appliesOneTime : false,
-    calculationMethod: interventionsData.utilityData?.calculationMethod || '',
-    source: interventionsData.utilityData?.source || ''
-  });
+  const [effectData, setEffectData] = useState({ ...EMPTY_EFFECT, ...interventionsData.effectData });
+  const [showAdvancedEffect, setShowAdvancedEffect] = useState(false);
 
-  const [effectData, setEffectData] = useState({
-    effectType: interventionsData.effectData?.effectType || 'DI_Probability',
-    value: interventionsData.effectData?.value || '',
-    modifiesWhat: interventionsData.effectData?.modifiesWhat || '',
-    description: interventionsData.effectData?.description || ''
-  });
+  const { saving, success, error, withSave } = useSaveStatus();
 
-  const [detectionData, setDetectionData] = useState({
-    sensitivity: interventionsData.detectionData?.sensitivity || '',
-    sensitivitySource: interventionsData.detectionData?.sensitivitySource || '',
-    specificity: interventionsData.detectionData?.specificity || '',
-    specificitySource: interventionsData.detectionData?.specificitySource || ''
-  });
-
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
-
+  // ── Sync to parent ────────────────────────────────────────────────────────
   useEffect(() => {
     setInterventionsData({
       label: formData.label,
       comment: formData.comment,
       interventionType: formData.interventionType,
       isAssessed: formData.isAssessed,
-      costData: costData,
-      utilityData: utilityData,
-      effectData: effectData,
-      detectionData: detectionData
+      costsData, utilitiesData, sensitivitiesData, specificitiesData, effectData,
     });
-  }, [formData, costData, utilityData, effectData, detectionData, setInterventionsData]);
+  }, [formData, costsData, utilitiesData, sensitivitiesData, specificitiesData, effectData, setInterventionsData]);
 
   const handleInputChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData({ ...formData, [e.target.name]: value });
   };
 
-  const handleCostChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setCostData({ ...costData, [e.target.name]: value });
-  };
-
-  const handleUtilityChange = (e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setUtilityData({ ...utilityData, [e.target.name]: value });
-  };
-
   const handleEffectChange = (e) => setEffectData({ ...effectData, [e.target.name]: e.target.value });
 
-  const handleDetectionChange = (e) => setDetectionData({ ...detectionData, [e.target.name]: e.target.value });
+  // ── Create deterministic or stochastic parameter ──────────────────────────
+  const createParameter = async (baseLabel, comment, classes, dataItemType, paramData, additionalDataProps = [], additionalObjectProps = []) => {
+    const baseDataProps = [
+      { property: 'hasExpectedValue', value: parseFloat(paramData.value) },
+      ...(paramData.appliesOneTime !== undefined ? [{ property: 'appliesOneTime', value: paramData.appliesOneTime }] : []),
+      ...(paramData.year        ? [{ property: 'hasYear',     value: parseInt(paramData.year) }] : []),
+      ...(paramData.source      ? [{ property: 'hasSource',   value: paramData.source }]         : []),
+      ...(paramData.isDisutility !== undefined ? [{ property: 'isDisutility', value: paramData.isDisutility }] : []),
+      ...additionalDataProps
+    ];
 
-  const createIndividual = async (individualData) => {
-    const response = await fetch(`${API_BASE_URL}/ontology/individual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(individualData),
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.detail || 'Error creating individual');
+    if (paramData.parameterType === 'Deterministic') {
+      return await createIndividual({
+        label: baseLabel, comment,
+        selectedClasses: [...classes, 'DeterministicParameter'],
+        datatypeProperties: baseDataProps,
+        objectProperties: [{ property: 'hasDataItemType', value: dataItemType }, ...additionalObjectProps]
+      });
     }
 
-    return await response.json();
+    const distributionLabel = await buildDistribution(baseLabel, paramData);
+
+    return await createIndividual({
+      label: baseLabel, comment,
+      selectedClasses: [...classes, 'SecondOrderUncertaintyParameter'],
+      datatypeProperties: baseDataProps,
+      objectProperties: [
+        { property: 'hasDataItemType',                value: dataItemType },
+        { property: 'hasUncertaintyCharacterization', value: distributionLabel },
+        ...additionalObjectProps
+      ]
+    });
   };
 
-  const handleSave = async () => {
-    if (!formData.label) {
-      setError('El nombre de la intervención es obligatorio');
-      return;
-    }
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const handleSave = () => {
+    if (!formData.label) return;
 
-    setSaving(true);
-    setError('');
-    setSuccess(false);
-
-    try {
-      const createdIndividuals = [];
+    withSave(async () => {
       const interventionObjectProps = [];
 
-      // 1. Crear parámetro de Coste (si existe)
-      if (costData.value) {
-        const costParam = await createIndividual({
-          label: `${formData.label}_Cost`,
-          comment: `Cost of ${formData.label}`,
-          selectedClasses: ['Cost', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(costData.value) },
-            { property: 'appliesOneTime', value: costData.appliesOneTime },
-            ...(costData.year ? [{ property: 'hasYear', value: parseInt(costData.year) }] : []),
-            ...(costData.source ? [{ property: 'hasSource', value: costData.source }] : [])
-          ],
-          objectProperties: [
-            { property: 'hasDataItemType', value: costData.currency }
-          ]
-        });
-        interventionObjectProps.push({ property: 'hasCost', value: `${formData.label}_Cost` });
-        createdIndividuals.push({ type: 'Cost Parameter', name: costParam.individual.label });
+      // 1. Costs
+      for (let i = 0; i < costsData.length; i++) {
+        const cost = costsData[i];
+        if (!cost.value) continue;
+        const suffix = cost.name ? `_${cost.name.replace(/\s+/g, '_')}` : `_Cost${i + 1}`;
+        const label  = `${formData.label}${suffix}`;
+        await createParameter(label, `${cost.name || `Cost ${i + 1}`} of ${formData.label}`, ['Cost'], cost.currency, cost);
+        interventionObjectProps.push({ property: 'hasCost', value: label });
       }
 
-      // 2. Crear parámetro de Utilidad (si existe)
-      if (utilityData.value) {
-        const utilityParam = await createIndividual({
-          label: `${formData.label}_Utility`,
-          comment: `Utility of ${formData.label}`,
-          selectedClasses: ['Utility', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(utilityData.value) },
-            { property: 'isDisutility', value: utilityData.isDisutility },
-            { property: 'appliesOneTime', value: utilityData.appliesOneTime },
-            ...(utilityData.source ? [{ property: 'hasSource', value: utilityData.source }] : [])
-          ],
-          objectProperties: [
-            { property: 'hasDataItemType', value: 'DI_Generic_Utility' }
-          ]
-        });
-        interventionObjectProps.push({ property: 'hasUtility', value: `${formData.label}_Utility` });
-        createdIndividuals.push({ type: 'Utility Parameter', name: utilityParam.individual.label });
+      // 2. Utilities
+      for (let i = 0; i < utilitiesData.length; i++) {
+        const utility = utilitiesData[i];
+        if (!utility.value) continue;
+        const suffix = utility.name ? `_${utility.name.replace(/\s+/g, '_')}` : `_Utility${i + 1}`;
+        const label  = `${formData.label}${suffix}`;
+        await createParameter(label, `${utility.name || `Utility ${i + 1}`} of ${formData.label}`, ['Utility'], 'DI_Generic_Utility', utility);
+        interventionObjectProps.push({ property: 'hasUtility', value: label });
       }
 
-      // 3. Crear parámetro Modificador (efecto de la intervención)
+      // 3. Effect
       if (effectData.value && effectData.modifiesWhat) {
-        const effectParam = await createIndividual({
-          label: `${formData.label}_Effect`,
-          comment: effectData.description || `Effect of ${formData.label}`,
-          selectedClasses: ['ModifierParameter', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(effectData.value) },
-            ...(effectData.description ? [{ property: 'hasDescription', value: effectData.description }] : [])
-          ],
-          objectProperties: [
-            { property: 'hasDataItemType', value: effectData.effectType },
-            { property: 'modifies', value: effectData.modifiesWhat }
-          ]
-        });
-        interventionObjectProps.push({ property: 'involvesModification', value: `${formData.label}_Effect` });
-        createdIndividuals.push({ type: 'Effect Parameter', name: effectParam.individual.label });
+        const effectLabel = `${formData.label}_Effect`;
+        await createParameter(
+          effectLabel,
+          effectData.description || `Effect of ${formData.label}`,
+          ['ModifierParameter'],
+          effectData.effectType,
+          effectData,
+          effectData.description ? [{ property: 'hasDescription', value: effectData.description }] : [],
+          [{ property: 'modifies', value: effectData.modifiesWhat }]
+        );
+        interventionObjectProps.push({ property: 'involvesModification', value: effectLabel });
       }
 
-      // 4. Crear parámetros de Sensitivity y Specificity (solo para intervenciones de detección)
-      const isDetectionIntervention = formData.interventionType === 'ScreeningIntervention' || 
-                                       formData.interventionType === 'DiagnosisIntervention';
-
-      if (isDetectionIntervention) {
-        // 4a. Crear parámetro de Sensibilidad
-        if (detectionData.sensitivity) {
-          const sensitivityParam = await createIndividual({
-            label: `${formData.label}_Sensitivity`,
-            comment: `Sensitivity of ${formData.label}`,
-            selectedClasses: ['Parameter', 'DeterministicParameter'],
-            datatypeProperties: [
-              { property: 'hasExpectedValue', value: parseFloat(detectionData.sensitivity) },
-              ...(detectionData.sensitivitySource ? [{ property: 'hasSource', value: detectionData.sensitivitySource }] : [])
-            ],
-            objectProperties: [
-              { property: 'hasDataItemType', value: 'DI_Sensitivity' }
-            ]
-          });
-          interventionObjectProps.push({ property: 'hasSensitivity', value: `${formData.label}_Sensitivity` });
-          createdIndividuals.push({ type: 'Sensitivity Parameter', name: sensitivityParam.individual.label });
-        }
-
-        // 4b. Crear parámetro de Especificidad
-        if (detectionData.specificity) {
-          const specificityParam = await createIndividual({
-            label: `${formData.label}_Specificity`,
-            comment: `Specificity of ${formData.label}`,
-            selectedClasses: ['Parameter', 'DeterministicParameter'],
-            datatypeProperties: [
-              { property: 'hasExpectedValue', value: parseFloat(detectionData.specificity) },
-              ...(detectionData.specificitySource ? [{ property: 'hasSource', value: detectionData.specificitySource }] : [])
-            ],
-            objectProperties: [
-              { property: 'hasDataItemType', value: 'DI_Specificity' }
-            ]
-          });
-          interventionObjectProps.push({ property: 'hasSpecificity', value: `${formData.label}_Specificity` });
-          createdIndividuals.push({ type: 'Specificity Parameter', name: specificityParam.individual.label });
-        }
+      // 4. Sensitivities
+      for (let i = 0; i < sensitivitiesData.length; i++) {
+        const sens = sensitivitiesData[i];
+        if (!sens.value) continue;
+        const suffix = sens.name ? `_${sens.name.replace(/\s+/g, '_')}` : `_Sensitivity${sensitivitiesData.length > 1 ? i + 1 : ''}`;
+        const label  = `${formData.label}${suffix}`;
+        await createParameter(label, `${sens.name || `Sensitivity ${i + 1}`} of ${formData.label}`, ['Parameter'], 'DI_Sensitivity', sens);
+        interventionObjectProps.push({ property: 'hasSensitivity', value: label });
       }
 
-      // 5. Crear el individuo Intervention
-      const interventionDataProps = [
-        { property: 'isAssessedIntervention', value: formData.isAssessed },
-        ...(formData.comment ? [{ property: 'hasDescription', value: formData.comment }] : [])
-      ];
+      // 5. Specificities
+      for (let i = 0; i < specificitiesData.length; i++) {
+        const spec = specificitiesData[i];
+        if (!spec.value) continue;
+        const suffix = spec.name ? `_${spec.name.replace(/\s+/g, '_')}` : `_Specificity${specificitiesData.length > 1 ? i + 1 : ''}`;
+        const label  = `${formData.label}${suffix}`;
+        await createParameter(label, `${spec.name || `Specificity ${i + 1}`} of ${formData.label}`, ['Parameter'], 'DI_Specificity', spec);
+        interventionObjectProps.push({ property: 'hasSpecificity', value: label });
+      }
 
-      const interventionResult = await createIndividual({
+      // 6. Intervention individual
+      await createIndividual({
         label: formData.label,
         comment: formData.comment,
         selectedClasses: [formData.interventionType],
-        datatypeProperties: interventionDataProps,
+        datatypeProperties: [
+          { property: 'isAssessedIntervention', value: formData.isAssessed },
+          ...(formData.comment ? [{ property: 'hasDescription', value: formData.comment }] : [])
+        ],
         objectProperties: interventionObjectProps
       });
-
-      createdIndividuals.push({ type: 'Intervention', name: interventionResult.individual.label });
-
-      console.log('✅ Individuos creados:', createdIndividuals);
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-
-    } catch (err) {
-      console.error('❌ Error:', err);
-      setError(err.message || 'Error de conexión');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
+
+  // ── Table data ────────────────────────────────────────────────────────────
+  const MAX_CHARS = 21;
+  const truncate = (text, max = MAX_CHARS) => text.length > max ? `${text.slice(0, max)}…` : text;
 
   const tableData = [
     { category: 'General', property: 'Nombre', value: formData.label || '-' },
-    { category: 'General', property: 'Tipo', value: formData.interventionType || '-' },
-    { category: 'General', property: '¿Evaluada?', value: formData.isAssessed ? 'Sí' : 'No' },
-    { category: 'Económico', property: 'Coste', value: costData.value ? `${costData.value} €` : '-' },
-    { category: 'Económico', property: 'Aplicación única', value: costData.appliesOneTime ? 'Sí' : 'No' },
-    { category: 'Económico', property: 'Fuente coste', value: costData.source || '-' },
-    { category: 'Calidad Vida', property: 'Utilidad', value: utilityData.value || '-' },
-    { category: 'Calidad Vida', property: 'Tipo', value: utilityData.isDisutility ? 'Disutilidad' : 'Utilidad' },
-    { category: 'Calidad Vida', property: 'Método', value: utilityData.calculationMethod || '-' },
-    { category: 'Efectos', property: 'Tipo efecto', value: effectData.effectType || '-' },
-    { category: 'Efectos', property: 'Valor', value: effectData.value || '-' },
-    { category: 'Efectos', property: 'Modifica', value: effectData.modifiesWhat || '-' },
+    { category: 'General', property: 'Tipo',   value: formData.interventionType || '-' },
+    { category: 'General', property: 'Estado', value: formData.isAssessed ? 'Evaluada' : 'No evaluada' },
   ];
 
-  // Añadir sensibilidad y especificidad solo si es intervención de detección
-  const isDetectionIntervention = formData.interventionType === 'ScreeningIntervention' || 
-                                   formData.interventionType === 'DiagnosisIntervention';
-  
-  if (isDetectionIntervention) {
-    tableData.push(
-      { category: 'Detección', property: 'Sensibilidad', value: detectionData.sensitivity || '-' },
-      { category: 'Detección', property: 'Fuente Sensibilidad', value: detectionData.sensitivitySource || '-' },
-      { category: 'Detección', property: 'Especificidad', value: detectionData.specificity || '-' },
-      { category: 'Detección', property: 'Fuente Especificidad', value: detectionData.specificitySource || '-' }
-    );
-  }
+  costsData.forEach((cost, i) => tableData.push(
+    { category: 'Costes', property: cost.name ? truncate(cost.name) : `Coste ${i + 1}`, value: cost.value ? `${cost.value} €` : '-' },
+    { category: 'Costes', property: 'Tipo pago',  value: cost.appliesOneTime ? 'Pago único' : 'Pago anual' },
+    { category: 'Costes', property: 'Parámetro',  value: cost.parameterType === 'Stochastic' ? `Estocástico (${cost.distributionType})` : 'Determinístico' },
+    { category: 'Costes', property: 'Fuente',     value: cost.source || '-' },
+  ));
 
+  utilitiesData.forEach((utility, i) => tableData.push(
+    { category: 'Utilidades', property: utility.name ? truncate(utility.name) : `Utilidad ${i + 1}`, value: utility.value || '-' },
+    { category: 'Utilidades', property: 'Tipo',      value: utility.isDisutility ? 'Desutilidad' : 'Utilidad' },
+    { category: 'Utilidades', property: 'Parámetro', value: utility.parameterType === 'Stochastic' ? `Estocástico (${utility.distributionType})` : 'Determinístico' },
+    { category: 'Utilidades', property: 'Fuente',    value: utility.source || '-' },
+  ));
+
+  sensitivitiesData.forEach((sens, i) => tableData.push(
+    { category: 'Sensibilidad', property: sens.name ? truncate(sens.name) : `Sensibilidad ${i + 1}`, value: sens.value || '-' },
+    { category: 'Sensibilidad', property: 'Parámetro', value: sens.parameterType === 'Stochastic' ? `Estocástico (${sens.distributionType})` : 'Determinístico' },
+    { category: 'Sensibilidad', property: 'Fuente',    value: sens.source || '-' },
+  ));
+
+  specificitiesData.forEach((spec, i) => tableData.push(
+    { category: 'Especificidad', property: spec.name ? truncate(spec.name) : `Especificidad ${i + 1}`, value: spec.value || '-' },
+    { category: 'Especificidad', property: 'Parámetro', value: spec.parameterType === 'Stochastic' ? `Estocástico (${spec.distributionType})` : 'Determinístico' },
+    { category: 'Especificidad', property: 'Fuente',    value: spec.source || '-' },
+  ));
+
+  tableData.push(
+    { category: 'Efectos', property: 'Tipo efecto', value: effectData.effectType || '-' },
+    { category: 'Efectos', property: 'Valor',       value: effectData.value || '-' },
+    { category: 'Efectos', property: 'Parámetro',   value: effectData.parameterType === 'Stochastic' ? `Estocástico (${effectData.distributionType})` : 'Determinístico' },
+    { category: 'Efectos', property: 'Modifica',    value: effectData.modifiesWhat || '-' },
+  );
+
+  const categoryColor = (cat) => {
+    switch (cat) {
+      case 'General':       return 'bg-slate-200 text-slate-600';
+      case 'Costes':        return 'bg-blue-100 text-blue-700';
+      case 'Utilidades':    return 'bg-green-100 text-green-700';
+      case 'Sensibilidad':  return 'bg-yellow-100 text-yellow-700';
+      case 'Efectos':       return 'bg-rose-100 text-rose-700';
+      default:              return 'bg-purple-100 text-purple-700';
+    }
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Mensajes Flotantes */}
+      {/* Floating messages */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
-          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'
-            }`}>
+          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'}`}>
             {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
             <p className="text-sm font-bold">{error || '¡Intervención y efectos creados!'}</p>
           </div>
@@ -280,10 +258,11 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* PANEL IZQUIERDO: Formulario (Paleta Rose) */}
+        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
+            {/* Header */}
             <div className="bg-linear-to-br from-rose-600 via-rose-700 to-rose-900 rounded-3xl p-8 text-white">
               <div className="flex items-center space-x-3 mb-2">
                 <Pill className="w-7 h-7" strokeWidth={2.5} />
@@ -292,379 +271,161 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
               <p className="text-rose-50/80 text-sm font-medium">Define los tratamientos y analiza sus resultados HEOR</p>
             </div>
 
-            {/* Información General */}
+            {/* General Info */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <Book className="w-4 h-4 text-rose-600" />
-                </div>
+                <div className="p-2 bg-rose-100 rounded-lg"><Book className="w-4 h-4 text-rose-600" /></div>
                 <h2 className="text-lg font-bold text-slate-800">Información General</h2>
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre <strong>*</strong></label>
-                  <input
-                    type="text"
-                    name="label"
-                    value={formData.label}
-                    onChange={handleInputChange}
+                  <input type="text" name="label" value={formData.label} onChange={handleInputChange}
                     placeholder="ej: Cribado Neonatal"
-                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm"
-                  />
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm" />
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción</label>
-                  <textarea
-                    name="comment"
-                    value={formData.comment}
-                    onChange={handleInputChange}
-                    placeholder="ej: Intervención de cribado neonatal para detectar enfermedad X"
-                    rows="2"
-                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm resize-none"
-                  />
+                  <textarea name="comment" value={formData.comment} onChange={handleInputChange}
+                    placeholder="ej: Intervención de cribado neonatal para detectar enfermedad X" rows="2"
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-rose-500 outline-none transition-all shadow-sm resize-none" />
                 </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Intervención</label>
-                    <select
-                      name="interventionType"
-                      value={formData.interventionType}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    >
+                    <select name="interventionType" value={formData.interventionType} onChange={handleInputChange}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all">
                       <option value="TherapeuticIntervention">Terapéutica</option>
                       <option value="ScreeningIntervention">Cribado</option>
                       <option value="DiagnosisIntervention">Diagnóstico</option>
                     </select>
                   </div>
-
-                  <div className="space-y-2 flex items-end">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="isAssessed"
-                        checked={formData.isAssessed}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 text-rose-600 border-slate-300 rounded focus:ring-rose-500"
-                      />
-                      <span className="text-sm font-bold text-slate-700">¿Es la intervención evaluada?</span>
-                    </label>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Estado de Evaluación</label>
+                    <ToggleButton value={formData.isAssessed} onChange={handleInputChange}
+                      option1="No evaluada" option2="Evaluada" name="isAssessed" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Datos Económicos */}
+            {/* Costs */}
+            <SectionCard icon={<DollarSign className="w-4 h-4 text-rose-700" />}
+              title="Costes de la Intervención"
+              badge={`${costsData.length} coste${costsData.length !== 1 ? 's' : ''}`}
+              onAdd={costHandlers.add} addLabel="Añadir nuevo coste">
+              {costsData.map((cost, i) => (
+                <CostCard key={i} costData={cost} index={i}
+                  onUpdate={costHandlers.update} onDelete={costHandlers.delete}
+                  canDelete={costsData.length > 1}
+                  isExpanded={expandedCosts.includes(i)} onToggleExpand={() => costHandlers.toggle(i)} />
+              ))}
+            </SectionCard>
+
+            {/* Utilities */}
+            <SectionCard icon={<Sparkles className="w-4 h-4 text-rose-700" />}
+              title="Utilidad"
+              badge={`${utilitiesData.length} utilidad${utilitiesData.length !== 1 ? 'es' : ''}`}
+              onAdd={utilityHandlers.add} addLabel="Añadir nueva utilidad">
+              {utilitiesData.map((utility, i) => (
+                <UtilityCard key={i} utilityData={utility} index={i}
+                  onUpdate={utilityHandlers.update} onDelete={utilityHandlers.delete}
+                  canDelete={utilitiesData.length > 1}
+                  isExpanded={expandedUtilities.includes(i)} onToggleExpand={() => utilityHandlers.toggle(i)} />
+              ))}
+            </SectionCard>
+
+            {/* Sensitivities */}
+            <SectionCard icon={<ShieldCheck className="w-4 h-4 text-rose-700" />}
+              title="Sensibilidad"
+              badge={`${sensitivitiesData.length} parámetro${sensitivitiesData.length !== 1 ? 's' : ''}`}
+              onAdd={sensitivityHandlers.add} addLabel="Añadir nueva sensibilidad">
+              {sensitivitiesData.map((sens, i) => (
+                <DetectionParameterCard key={i} type="sensitivity" paramData={sens} index={i}
+                  onUpdate={sensitivityHandlers.update} onDelete={sensitivityHandlers.delete}
+                  canDelete={sensitivitiesData.length > 1}
+                  isExpanded={expandedSensitivities.includes(i)} onToggleExpand={() => sensitivityHandlers.toggle(i)} />
+              ))}
+            </SectionCard>
+
+            {/* Specificities */}
+            <SectionCard icon={<Target className="w-4 h-4 text-rose-700" />}
+              title="Especificidad"
+              badge={`${specificitiesData.length} parámetro${specificitiesData.length !== 1 ? 's' : ''}`}
+              onAdd={specificityHandlers.add} addLabel="Añadir nueva especificidad">
+              {specificitiesData.map((spec, i) => (
+                <DetectionParameterCard key={i} type="specificity" paramData={spec} index={i}
+                  onUpdate={specificityHandlers.update} onDelete={specificityHandlers.delete}
+                  canDelete={specificitiesData.length > 1}
+                  isExpanded={expandedSpecificities.includes(i)} onToggleExpand={() => specificityHandlers.toggle(i)} />
+              ))}
+            </SectionCard>
+
+            {/* Effects */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <DollarSign className="w-4 h-4 text-rose-700" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-rose-100 rounded-lg"><Zap className="w-4 h-4 text-rose-700" /></div>
+                  <h2 className="text-lg font-bold text-slate-800">Efectos de la Intervención</h2>
                 </div>
-                <h2 className="text-lg font-bold text-slate-800">Datos Económicos</h2>
-              </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Coste</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      name="value"
-                      value={costData.value}
-                      onChange={handleCostChange}
-                      placeholder="150.50"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Moneda</label>
-                    <select
-                      name="currency"
-                      value={costData.currency}
-                      onChange={handleCostChange}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    >
-                      <option value="Currency_Euro">Euro (€)</option>
-                      <option value="Currency_Dollar">Dólar ($)</option>
-                      <option value="Currency_Pound">Libra (£)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Año</label>
-                    <input
-                      type="number"
-                      name="year"
-                      value={costData.year}
-                      onChange={handleCostChange}
-                      placeholder="2024"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2 flex items-end">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="appliesOneTime"
-                        checked={costData.appliesOneTime}
-                        onChange={handleCostChange}
-                        className="w-4 h-4 text-rose-600 border-slate-300 rounded focus:ring-rose-500"
-                      />
-                      <span className="text-xs font-bold text-slate-700">Aplicar una sola vez</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                  <input
-                    type="text"
-                    name="source"
-                    value={costData.source}
-                    onChange={handleCostChange}
-                    placeholder="ej: Base de datos de costes SNS 2024"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Sensibilidad y Especificidad (solo para intervenciones de detección) */}
-            {(formData.interventionType === 'ScreeningIntervention' || formData.interventionType === 'DiagnosisIntervention') && (
-              <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-rose-100 rounded-lg">
-                    <ShieldCheck className="w-4 h-4 text-rose-700" />
-                  </div>
-                  <h2 className="text-lg font-bold text-slate-800">Sensibilidad y Especificidad</h2>
-                </div>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Sensibilidad (0-1)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        name="sensitivity"
-                        value={detectionData.sensitivity}
-                        onChange={handleDetectionChange}
-                        placeholder="0.95"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente Sensibilidad</label>
-                      <input
-                        type="text"
-                        name="sensitivitySource"
-                        value={detectionData.sensitivitySource}
-                        onChange={handleDetectionChange}
-                        placeholder="ej: Estudio validación 2023"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Especificidad (0-1)</label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        name="specificity"
-                        value={detectionData.specificity}
-                        onChange={handleDetectionChange}
-                        placeholder="0.98"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente Especificidad</label>
-                      <input
-                        type="text"
-                        name="specificitySource"
-                        value={detectionData.specificitySource}
-                        onChange={handleDetectionChange}
-                        placeholder="ej: Estudio validación 2023"
-                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Utilidad/Calidad de Vida */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <Sparkles className="w-4 h-4 text-rose-700" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-800">Utilidad / Calidad de Vida</h2>
-              </div>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor</label>
-                    <input
-                      type="number"
-                      step="0.001"
-                      name="value"
-                      value={utilityData.value}
-                      onChange={handleUtilityChange}
-                      placeholder="0.85"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Método de Cálculo</label>
-                    <input
-                      type="text"
-                      name="calculationMethod"
-                      value={utilityData.calculationMethod}
-                      onChange={handleUtilityChange}
-                      placeholder="EQ-5D"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2 flex items-center">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="isDisutility"
-                        checked={utilityData.isDisutility}
-                        onChange={handleUtilityChange}
-                        className="w-4 h-4 text-rose-600 border-slate-300 rounded focus:ring-rose-500"
-                      />
-                      <span className="text-xs font-bold text-slate-700">Es una disutilidad</span>
-                    </label>
-                  </div>
-                  <div className="space-y-2 flex items-center">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        name="appliesOneTime"
-                        checked={utilityData.appliesOneTime}
-                        onChange={handleUtilityChange}
-                        className="w-4 h-4 text-rose-600 border-slate-300 rounded focus:ring-rose-500"
-                      />
-                      <span className="text-xs font-bold text-slate-700">Aplicar una sola vez</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                  <input
-                    type="text"
-                    name="source"
-                    value={utilityData.source}
-                    onChange={handleUtilityChange}
-                    placeholder="ej: Estudio de calidad de vida 2023"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Efectos/Modificaciones */}
-            <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-rose-100 rounded-lg">
-                  <Zap className="w-4 h-4 text-rose-700" />
-                </div>
-                <h2 className="text-lg font-bold text-slate-800">Efectos de la Intervención</h2>
+                <button type="button" onClick={() => setShowAdvancedEffect(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-linear-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 rounded-lg transition-all shadow-md hover:shadow-lg">
+                  <Settings className="w-4 h-4" /><span>Opciones avanzadas</span>
+                </button>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Efecto</label>
-                    <select
-                      name="effectType"
-                      value={effectData.effectType}
-                      onChange={handleEffectChange}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    >
-                      <option value="DI_Probability">Probabilidad</option>
-                      <option value="DI_RelativeRisk">Riesgo Relativo</option>
-                      <option value="DI_MeanDifference">Diferencia de Medias</option>
-                      <option value="DI_Factor">Factor</option>
-                      <option value="DI_Continuous_Variable">Variable Continua</option>
+                    <select name="effectType" value={effectData.effectType} onChange={handleEffectChange}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all">
+                      <option value="Probabilidad">Probabilidad</option>
+                      <option value="Riesgo Relativo">Riesgo Relativo</option>
+                      <option value="Diferencia de Medias">Diferencia de Medias</option>
+                      <option value="Factor">Factor</option>
+                      <option value="Variable Continua">Variable Continua</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor del Efecto</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      name="value"
-                      value={effectData.value}
-                      onChange={handleEffectChange}
+                    <input type="number" step="0.0001" name="value" value={effectData.value} onChange={handleEffectChange}
                       placeholder="0.0"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                    />
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
                   </div>
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Qué Modifica (Nombre del parámetro)</label>
-                  <input
-                    type="text"
-                    name="modifiesWhat"
-                    value={effectData.modifiesWhat}
-                    onChange={handleEffectChange}
+                  <input type="text" name="modifiesWhat" value={effectData.modifiesWhat} onChange={handleEffectChange}
                     placeholder="ej: BD_Proportion_Seizures_PBD"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all"
-                  />
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
                 </div>
-
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción del Efecto</label>
-                  <textarea
-                    name="description"
-                    value={effectData.description}
-                    onChange={handleEffectChange}
-                    placeholder="ej: Reduce a 0 la probabilidad de manifestaciones"
-                    rows="2"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all resize-none"
-                  />
+                  <textarea name="description" value={effectData.description} onChange={handleEffectChange}
+                    placeholder="ej: Reduce a 0 la probabilidad de manifestaciones" rows="2"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all resize-none" />
                 </div>
               </div>
             </div>
 
+            {/* Info note */}
             <div className="flex items-start space-x-3 p-4 bg-rose-50/50 rounded-xl border border-rose-100">
               <ShieldCheck className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
               <div className="text-xs text-rose-800 leading-relaxed">
-                <strong>Importante:</strong> El campo "Qué Modifica" debe contener el nombre exacto del parámetro que será modificado por esta intervención.
-                Por ejemplo, si reduces la probabilidad de convulsiones, debes indicar el nombre del parámetro correspondiente en la ontología.
-                {(formData.interventionType === 'ScreeningIntervention' || formData.interventionType === 'DiagnosisIntervention') && (
-                  <span className="block mt-2">
-                    <strong>Para intervenciones de detección:</strong> Los campos de Sensibilidad y Especificidad son importantes para caracterizar 
-                    la capacidad diagnóstica de la intervención.
-                  </span>
-                )}
+                <strong>Importante:</strong> El campo "Qué Modifica" debe contener el nombre exacto del parámetro que será modificado. Para sensibilidad y especificidad se recomienda la distribución <strong>Beta</strong> al estar acotada entre 0 y 1.
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving || !formData.label}
-              className="w-full bg-linear-to-r from-rose-600 via-rose-700 to-rose-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-rose-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3"
-            >
+            {/* Save button */}
+            <button onClick={handleSave} disabled={saving || !formData.label}
+              className="w-full bg-linear-to-r from-rose-600 via-rose-700 to-rose-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-rose-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3">
               <Save className="w-5 h-5" />
               <span className="text-lg">{saving ? 'Registrando...' : 'Guardar Intervención'}</span>
             </button>
           </div>
         </div>
 
-        {/* PANEL DERECHO: Tabla (Rose / White Style) */}
+        {/* ══ RIGHT PANEL: Preview table ══════════════════════════════════════ */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-rose-500 overflow-hidden">
 
@@ -676,7 +437,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">Tabla de Intervención</h2>
-                    <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest">Vista previa de los detalles de la intervención</p>
+                    <p className="text-[10px] text-rose-600 font-bold uppercase tracking-widest">Vista previa de los detalles</p>
                   </div>
                 </div>
                 <div className="bg-rose-100 px-4 py-1.5 rounded-full border border-rose-200 flex items-center space-x-2">
@@ -693,24 +454,15 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
                   <div className="col-span-4">Atributo</div>
                   <div className="col-span-5">Valor</div>
                 </div>
-
                 {tableData.map((row, idx) => (
                   <div key={idx} className="grid grid-cols-12 items-center bg-slate-50/50 hover:bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 p-4 rounded-2xl border border-slate-200/50">
                     <div className="col-span-3">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${row.category === 'General' ? 'bg-rose-100 text-rose-700' :
-                        row.category === 'Económico' ? 'bg-emerald-100 text-emerald-700' :
-                          row.category === 'Calidad Vida' ? 'bg-blue-100 text-blue-700' :
-                            row.category === 'Detección' ? 'bg-amber-100 text-amber-700' :
-                              'bg-purple-100 text-purple-700'
-                        }`}>
+                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${categoryColor(row.category)}`}>
                         {row.category}
                       </span>
                     </div>
-                    <div className="col-span-4 text-sm font-bold text-slate-400 tracking-tight">
-                      {row.property}
-                    </div>
-                    <div className={`col-span-5 text-sm font-semibold truncate pr-4 ${row.value === '-' ? 'text-slate-300 italic' : 'text-slate-800'
-                      }`}>
+                    <div className="col-span-4 text-sm font-bold text-slate-400 tracking-tight">{row.property}</div>
+                    <div className={`col-span-5 text-sm font-semibold truncate pr-4 ${row.value === '-' ? 'text-slate-300 italic' : 'text-slate-800'}`}>
                       {row.value}
                     </div>
                   </div>
@@ -726,24 +478,144 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, populationDat
           </div>
         </div>
       </div>
+
+      {/* ══ MODAL: Advanced Effect Options ══════════════════════════════════ */}
+      {showAdvancedEffect && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden border-2 border-rose-200">
+            <div className="bg-linear-to-r from-rose-600 to-rose-700 p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl"><Zap className="w-6 h-6 text-white" /></div>
+                <h2 className="text-2xl font-bold text-white">Opciones Avanzadas - Efectos</h2>
+              </div>
+              <button onClick={() => setShowAdvancedEffect(false)}
+                className="p-2 hover:bg-white/20 rounded-lg transition-colors text-white text-2xl leading-none font-bold">
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] custom-scrollbar">
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <label className="text-sm font-bold text-slate-700">Tipo de Parámetro</label>
+                  <ToggleButton
+                    value={effectData.parameterType === 'Stochastic'}
+                    onChange={(e) => handleEffectChange({ target: { name: 'parameterType', value: e.target.value ? 'Stochastic' : 'Deterministic' } })}
+                    option1="Determinístico" option2="Estocástico" name="parameterType" />
+                  <p className="text-xs text-slate-500">
+                    <strong>Determinístico:</strong> Valor fijo. <strong>Estocástico:</strong> Incluye incertidumbre mediante distribución probabilística.
+                  </p>
+                </div>
+
+                {effectData.parameterType === 'Stochastic' && (
+                  <>
+                    <div className="space-y-3">
+                      <label className="text-sm font-bold text-slate-700">Tipo de Distribución</label>
+                      <select name="distributionType" value={effectData.distributionType} onChange={handleEffectChange}
+                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/10 outline-none transition-all">
+                        <option value="Normal">Normal</option>
+                        <option value="Uniform">Uniforme</option>
+                        <option value="Gamma">Gamma</option>
+                      </select>
+                    </div>
+                    {(effectData.distributionType === 'Normal' || effectData.distributionType === 'LogNormal') && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-600 uppercase">Media</label>
+                          <input type="number" step="0.0001" name="mean" value={effectData.mean} onChange={handleEffectChange} placeholder="0.75"
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-600 uppercase">Desviación Estándar</label>
+                          <input type="number" step="0.0001" name="standardDeviation" value={effectData.standardDeviation} onChange={handleEffectChange} placeholder="0.05"
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all" />
+                        </div>
+                      </div>
+                    )}
+                    {effectData.distributionType === 'Uniform' && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-600 uppercase">Límite Inferior</label>
+                          <input type="number" step="0.0001" name="lowerBound" value={effectData.lowerBound} onChange={handleEffectChange} placeholder="0.5"
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-slate-600 uppercase">Límite Superior</label>
+                          <input type="number" step="0.0001" name="upperBound" value={effectData.upperBound} onChange={handleEffectChange} placeholder="1.0"
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-600 uppercase">Intervalo de Confianza (%)</label>
+                        <select name="confidenceInterval" value={effectData.confidenceInterval} onChange={handleEffectChange}
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all">
+                          <option value="90">90%</option>
+                          <option value="95">95%</option>
+                          <option value="99">99%</option>
+                        </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-600 uppercase">Tamaño de Muestra</label>
+                        <input type="number" name="sampleSize" value={effectData.sampleSize} onChange={handleEffectChange} placeholder="500"
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl text-sm focus:border-rose-500 outline-none transition-all" />
+                      </div>
+                    </div>
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <p className="text-xs text-blue-800">
+                        <strong>Recomendación:</strong> Para RR u OR usa Log-Normal. Para probabilidades (0-1) usa Beta. Para diferencias de medias usa Normal.
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end">
+              <button onClick={() => setShowAdvancedEffect(false)}
+                className="px-6 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-all">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(226, 232, 240, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          /* Color Rose-600 con opacidad */
-          background: rgba(225, 29, 72, 0.3); 
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          /* Color Rose-700 con más opacidad */
-          background: rgba(190, 18, 60, 0.5); 
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(225, 29, 72, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(190, 18, 60, 0.5); }
       `}</style>
+    </div>
+  );
+}
+
+// ── Section wrapper: header + badge + list + add button ──────────────────────
+function SectionCard({ icon, title, badge, onAdd, addLabel, children }) {
+  return (
+    <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-rose-100 rounded-lg">{icon}</div>
+          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-100 rounded-full border border-rose-200">
+          <div className="w-2 h-2 bg-rose-600 rounded-full" />
+          <span className="text-xs font-bold text-rose-700">{badge}</span>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {children}
+        <button type="button" onClick={onAdd}
+          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-linear-to-r from-rose-50 to-white hover:from-rose-100 hover:to-rose-50 border-2 border-dashed border-rose-300 hover:border-rose-400 rounded-2xl transition-all group">
+          <div className="p-2 bg-rose-100 group-hover:bg-rose-200 rounded-lg transition-colors">
+            <Plus className="w-4 h-4 text-rose-600" />
+          </div>
+          <span className="text-sm font-bold text-rose-700">{addLabel}</span>
+        </button>
+      </div>
     </div>
   );
 }
