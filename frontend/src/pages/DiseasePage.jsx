@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, AlertCircle, CheckCircle, Stethoscope, Database, ShieldCheck, Share2, Info } from 'lucide-react';
+import { Save, AlertCircle, CheckCircle, Stethoscope, Database, ShieldCheck, Share2 } from 'lucide-react';
 import OntologyGraph from '../components/OntologyGraph';
-
-const API_BASE_URL = 'http://localhost:8000';
+import EpidemiologicalParameterCard from '../components/EpidemiologicalParameterCard';
+import useEpiParameter from '../hooks/useEpiParameter';
+import useSaveStatus from '../hooks/useSaveStatus';
+import { createIndividual, createStochasticParameter } from '../api/ontology';
 
 function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, setDiseaseName, developmentData }) {
   const [formData, setFormData] = useState({
@@ -17,9 +19,11 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
     hasRefToSNOMED: diseaseData.references?.hasRefToSNOMED || ''
   });
 
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
+  const [prevalenceData, handlePrevalenceChange] = useEpiParameter();
+  const [incidenceData,  handleIncidenceChange]  = useEpiParameter();
+  const [mortalityData,  handleMortalityChange]  = useEpiParameter();
+
+  const { saving, success, error, withSave } = useSaveStatus();
 
   useEffect(() => {
     setDiseaseData({
@@ -28,91 +32,100 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
       selectedClasses: ['Disease'],
       datatypeProperties: [],
       objectProperties: [],
-      references: references
+      references,
+      prevalenceData,
+      incidenceData,
+      mortalityData
     });
     if (setDiseaseName) {
       setDiseaseName(formData.label);
     }
-  }, [formData, references, setDiseaseData]);
+  }, [formData, references, prevalenceData, incidenceData, mortalityData, setDiseaseData]);
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleReferenceChange = (e) => setReferences({ ...references, [e.target.name]: e.target.value });
 
-  const handleSave = async () => {
-    if (!formData.label) {
-      setError('El nombre de la enfermedad es obligatorio');
-      return;
-    }
-    setSaving(true);
-    setError('');
-    setSuccess(false);
+  const handleSave = () => {
+    if (!formData.label) return;
 
-    try {
+    withSave(async () => {
+      if (prevalenceData.value) {
+        await createStochasticParameter(
+          prevalenceData,
+          `${formData.label}_Prevalence`,
+          `Prevalence for ${formData.label}`,
+          ['EpidemiologicalParameter'],
+          [{ property: 'hasDataItemType', value: 'DI_Prevalence' }]
+        );
+      }
+
+      if (incidenceData.value) {
+        await createStochasticParameter(
+          incidenceData,
+          `${formData.label}_Incidence`,
+          `Incidence for ${formData.label}`,
+          ['EpidemiologicalParameter'],
+          [{ property: 'hasDataItemType', value: 'DI_Incidence' }]
+        );
+      }
+
+      if (mortalityData.value) {
+        await createStochasticParameter(
+          mortalityData,
+          `${formData.label}_Mortality`,
+          `Mortality for ${formData.label}`,
+          ['EpidemiologicalParameter'],
+          []
+        );
+      }
+
       const allProperties = [
-        ...(references.hasRefToDO ? [{ property: 'hasRefToDO', value: references.hasRefToDO }] : []),
-        ...(references.hasRefToICD ? [{ property: 'hasRefToICD', value: references.hasRefToICD }] : []),
-        ...(references.hasRefToOMIM ? [{ property: 'hasRefToOMIM', value: references.hasRefToOMIM }] : []),
+        ...(references.hasRefToDO     ? [{ property: 'hasRefToDO',     value: references.hasRefToDO }]     : []),
+        ...(references.hasRefToICD    ? [{ property: 'hasRefToICD',    value: references.hasRefToICD }]    : []),
+        ...(references.hasRefToOMIM   ? [{ property: 'hasRefToOMIM',   value: references.hasRefToOMIM }]   : []),
         ...(references.hasRefToSNOMED ? [{ property: 'hasRefToSNOMED', value: references.hasRefToSNOMED }] : []),
       ];
 
-      const dataToSend = {
+      await createIndividual({
         label: formData.label,
         comment: formData.comment,
         selectedClasses: ['Disease'],
         datatypeProperties: allProperties,
         objectProperties: []
-      };
-
-      const response = await fetch(`${API_BASE_URL}/ontology/individual`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dataToSend),
       });
-
-      if (response.ok) {
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 2000);
-      } else {
-        const data = await response.json();
-        setError(data.detail || 'Error al guardar la entidad clínica');
-      }
-    } catch (err) {
-      setError('Error de conexión con el servidor.');
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
-      
+
       {/* Mensajes Flotantes */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${
             error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'
           }`}>
-            {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-emerald-500" />}
+            {error
+              ? <AlertCircle className="w-5 h-5 text-rose-500" />
+              : <CheckCircle className="w-5 h-5 text-emerald-500" />}
             <p className="text-sm font-bold">{error || 'Entidad clínica guardada con éxito'}</p>
           </div>
         </div>
       )}
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
-        
-        {/* PANEL IZQUIERDO: Formulario (Azul Clínico) */}
+
+        {/* PANEL IZQUIERDO: Formulario */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
           <div className="max-w-3xl space-y-6">
-            
-            {/* Header con gradiente azul */}
+
+            {/* Header */}
             <div className="bg-linear-to-br from-emerald-500 to-emerald-900 rounded-3xl p-8 text-white">
-              <div className="relative z-10">
-                <div className="flex items-center space-x-3 mb-2">
-                  <Stethoscope className="w-7 h-7 text-emerald-100" strokeWidth={2.5} />
-                  <h1 className="text-3xl font-bold tracking-tight">Enfermedad</h1>
-                </div>
-                <p className="text-emerald-100/80 text-sm font-medium">Define la identidad y codificación internacional de la patología</p>
+              <div className="flex items-center space-x-3 mb-2">
+                <Stethoscope className="w-7 h-7 text-emerald-100" strokeWidth={2.5} />
+                <h1 className="text-3xl font-bold tracking-tight">Enfermedad</h1>
               </div>
+              <p className="text-emerald-100/80 text-sm font-medium">Define la identidad y codificación internacional de la patología</p>
             </div>
 
             {/* Datos Principales */}
@@ -139,7 +152,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               />
             </div>
 
-            {/* Bloque: Codificación y Referencias */}
+            {/* Sistemas de Referencia */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-emerald-100 rounded-lg">
@@ -147,13 +160,12 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
                 </div>
                 <h2 className="text-lg font-bold text-slate-800">Sistemas de Referencia</h2>
               </div>
-              
               <div className="grid grid-cols-2 gap-6">
                 {[
-                  { name: 'hasRefToICD', label: 'CIE-10 (ICD)', ph: 'Cód. Diagnóstico' },
-                  { name: 'hasRefToSNOMED', label: 'SNOMED CT', ph: 'ID Concepto' },
-                  { name: 'hasRefToOMIM', label: 'OMIM', ph: 'Ref. Genética' },
-                  { name: 'hasRefToDO', label: 'Disease Ontology', ph: 'DOID:XXXX' }
+                  { name: 'hasRefToICD',    label: 'CIE-10 (ICD)',     ph: 'Cód. Diagnóstico' },
+                  { name: 'hasRefToSNOMED', label: 'SNOMED CT',        ph: 'ID Concepto' },
+                  { name: 'hasRefToOMIM',   label: 'OMIM',             ph: 'Ref. Genética' },
+                  { name: 'hasRefToDO',     label: 'Disease Ontology', ph: 'DOID:XXXX' }
                 ].map(field => (
                   <div key={field.name} className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{field.label}</label>
@@ -170,11 +182,34 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
             </div>
 
-            {/* Nota técnica azul */}
+            {/* Parámetros Epidemiológicos */}
+            <EpidemiologicalParameterCard
+              title="Prevalencia"
+              data={prevalenceData}
+              onChange={handlePrevalenceChange}
+              valuePlaceholder="0.0000147885"
+              valueStep="0.0000001"
+            />
+            <EpidemiologicalParameterCard
+              title="Incidencia"
+              data={incidenceData}
+              onChange={handleIncidenceChange}
+              valuePlaceholder="0.0116"
+              valueStep="0.0001"
+            />
+            <EpidemiologicalParameterCard
+              title="Mortalidad"
+              data={mortalityData}
+              onChange={handleMortalityChange}
+              valuePlaceholder="0.052"
+              valueStep="0.001"
+            />
+
+            {/* Nota técnica */}
             <div className="flex items-start space-x-3 p-5 bg-emerald-500/5 rounded-2xl border border-emerald-200 shadow-inner">
               <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
               <p className="text-xs text-emerald-700 leading-relaxed font-medium italic">
-                <strong>Validación HEOR:</strong> Vincular códigos internacionales permite la interoperabilidad de datos y la estimación de costes basada en evidencia real (RWE).
+                <strong>Validación HEOR:</strong> Vincular códigos internacionales permite la interoperabilidad de datos y la estimación de costes basada en evidencia real (RWE). Los parámetros epidemiológicos se enlazarán automáticamente a la población al crearla.
               </p>
             </div>
 
@@ -189,10 +224,10 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
           </div>
         </div>
 
-        {/* PANEL DERECHO: Grafo (Estilo Dark Glass) */}
+        {/* PANEL DERECHO: Grafo */}
         <div className="w-3/4 flex flex-col h-full">
           <div className="flex flex-col h-full rounded-[2.5rem] shadow-2xl border-2 border-emerald-500 overflow-hidden">
-            
+
             {/* Header del Grafo */}
             <div className="bg-linear-to-br from-emerald-50 to-white backdrop-blur-md px-8 py-6 border-b border-emerald-500 flex justify-between items-center">
               <div className="flex items-center space-x-4">
@@ -202,7 +237,6 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
                   <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest">Visualización interactiva de relaciones clínicas</p>
                 </div>
               </div>
-
               <div className="bg-emerald-100 px-4 py-1.5 rounded-full border border-emerald-200 flex items-center space-x-2">
                 <Share2 className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
                 <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">En Vivo</span>
@@ -217,11 +251,10 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
                   developmentData={developmentData}
                 />
               </div>
-              {/* Sombra interna para dar profundidad */}
               <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_60px_rgba(0,0,0,0.15)]" />
             </div>
 
-            {/* Legend / Footer del Grafo */}
+            {/* Footer del Grafo */}
             <div className="bg-linear-to-r from-white to-emerald-50 px-8 py-4 border-t border-emerald-500 flex justify-between items-center">
               <div className="flex space-x-8">
                 <div className="flex items-center space-x-2">
@@ -240,26 +273,12 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
           </div>
         </div>
       </div>
+
       <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-              
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(226, 232, 240, 0.3);
-          border-radius: 10px;
-        }
-              
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          /* Emerald-500 con opacidad */
-          background: rgba(16, 185, 129, 0.4); 
-          border-radius: 10px;
-        }
-              
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          /* Emerald-600 (más oscuro) con más opacidad */
-          background: rgba(5, 150, 105, 0.6); 
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(5, 150, 105, 0.6); }
       `}</style>
     </div>
   );

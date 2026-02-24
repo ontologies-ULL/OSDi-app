@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Save, AlertCircle, CheckCircle, Users, Hospital, ShieldCheck, Table as TableIcon } from 'lucide-react';
-
-const API_BASE_URL = 'http://localhost:8000';
+import { Book, Save, AlertCircle, CheckCircle, Users, ShieldCheck, Table as TableIcon, Plus, Trash2 } from 'lucide-react';
+import ToggleButton from '../components/ToggleButton';
+import { StochasticConfig } from '../components/AdvancedParameterComponent';
+import useEpiParameter from '../hooks/useEpiParameter';
+import useSaveStatus from '../hooks/useSaveStatus';
+import useCustomAttributes from '../hooks/useCustomAttributes';
+import { createIndividual, createStochasticParameter } from '../api/ontology';
 
 function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, setPopulationData, developmentData }) {
   const [formData, setFormData] = useState({
@@ -12,245 +16,183 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
   const [demographics, setDemographics] = useState({
     age: populationData.demographics?.age || '',
     minAge: populationData.demographics?.minAge || '',
-    femaleProportion: populationData.demographics?.femaleProportion || '',
+    maxAge: populationData.demographics?.maxAge || '',
     geographicLocation: populationData.demographics?.geographicLocation || '',
     populationSize: populationData.demographics?.populationSize || ''
   });
 
-  const [epidemiology, setEpidemiology] = useState({
-    prevalence: populationData.epidemiology?.prevalence || '',
-    prevalenceSource: populationData.epidemiology?.prevalenceSource || '',
-    incidence: populationData.epidemiology?.incidence || '',
-    incidenceSource: populationData.epidemiology?.incidenceSource || '',
-    mortality: populationData.epidemiology?.mortality || '',
-    mortalitySource: populationData.epidemiology?.mortalitySource || ''
+  const [sexData, setSexData] = useState({
+    isStochastic: false,
+    femaleProportion: '',
+    source: '',
+    comment: '',
+    distributionType: 'Beta',
+    mean: '', standardDeviation: '',
+    lowerBound: '', upperBound: '',
+    alpha: '', beta: '', lambda: '',
+    confidenceInterval: '95', sampleSize: ''
   });
 
-  const [lifeExpectancy, setLifeExpectancy] = useState({
+  const [lifeExpectancy, handleLifeExpectancyChange, setLifeExpectancy] = useEpiParameter({
     value: populationData.lifeExpectancy?.value || '',
-    source: populationData.lifeExpectancy?.source || ''
+    source: populationData.lifeExpectancy?.source || '',
+    distributionType: 'Normal'
   });
 
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
+  const [customAttributes, attrHandlers] = useCustomAttributes(populationData.customAttributes || []);
 
+  const { saving, success, error, withSave } = useSaveStatus();
+
+  // ── Sync to parent ────────────────────────────────────────────────────────
   useEffect(() => {
     setPopulationData({
       label: formData.label,
       comment: formData.comment,
-      demographics: demographics,
-      epidemiology: epidemiology,
-      lifeExpectancy: lifeExpectancy
+      demographics,
+      sexData,
+      lifeExpectancy,
+      customAttributes
     });
-  }, [formData, demographics, epidemiology, lifeExpectancy, setPopulationData]);
+  }, [formData, demographics, sexData, lifeExpectancy, customAttributes, setPopulationData]);
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleDemographicsChange = (e) => setDemographics({ ...demographics, [e.target.name]: e.target.value });
-  const handleEpidemiologyChange = (e) => setEpidemiology({ ...epidemiology, [e.target.name]: e.target.value });
-  const handleLifeExpectancyChange = (e) => setLifeExpectancy({ ...lifeExpectancy, [e.target.name]: e.target.value });
 
-  const createIndividual = async (individualData) => {
-    const response = await fetch(`${API_BASE_URL}/ontology/individual`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(individualData),
-    });
+  // ── Save ──────────────────────────────────────────────────────────────────
+  const handleSave = () => {
+    if (!formData.label) return;
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.detail || 'Error creating individual');
-    }
+    withSave(async () => {
+      const populationObjectProps = [];
+      const populationDataProps   = [];
 
-    return await response.json();
-  };
-
-  const handleSave = async () => {
-    if (!formData.label) {
-      setError('El nombre de la población es obligatorio');
-      return;
-    }
-
-    setSaving(true);
-    setError('');
-    setSuccess(false);
-
-    try {
-      const createdIndividuals = [];
-
-      // 1. Crear parámetro de Edad (Age)
+      // 1. Age
       if (demographics.age) {
-        const ageParam = await createIndividual({
+        await createIndividual({
           label: `${formData.label}_Age`,
           comment: `Age of the ${formData.label} population`,
           selectedClasses: ['Parameter', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(demographics.age) }
-          ],
-          objectProperties: [
-            { property: 'isValueOfAttribute', value: 'Attribute_Age' }
-          ]
+          datatypeProperties: [{ property: 'hasExpectedValue', value: parseFloat(demographics.age) }],
+          objectProperties: [{ property: 'isValueOfAttribute', value: 'Attribute_Age' }]
         });
-        createdIndividuals.push({ type: 'Age Parameter', name: ageParam.individual.label });
-      }
-
-      // 2. Crear parámetro de Sexo (Female Proportion)
-      if (demographics.femaleProportion) {
-        const sexParam = await createIndividual({
-          label: `${formData.label}_FemaleProportion`,
-          comment: `Female proportion in ${formData.label} population`,
-          selectedClasses: ['Parameter', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(demographics.femaleProportion) }
-          ],
-          objectProperties: [
-            { property: 'isValueOfAttribute', value: 'Attribute_Sex' }
-          ]
-        });
-        createdIndividuals.push({ type: 'Sex Parameter', name: sexParam.individual.label });
-      }
-
-      // 3. Crear parámetro de Esperanza de Vida
-      if (lifeExpectancy.value) {
-        const lifeExpParam = await createIndividual({
-          label: `${formData.label}_LifeExpectancy`,
-          comment: `Life expectancy for ${formData.label} population`,
-          selectedClasses: ['Parameter', 'DeterministicParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(lifeExpectancy.value) },
-            ...(lifeExpectancy.source ? [{ property: 'hasSource', value: lifeExpectancy.source }] : [])
-          ],
-          objectProperties: []
-        });
-        createdIndividuals.push({ type: 'Life Expectancy Parameter', name: lifeExpParam.individual.label });
-      }
-
-      // 4. Crear parámetros epidemiológicos
-      const epidemioParams = [];
-
-      if (epidemiology.prevalence) {
-        const prevParam = await createIndividual({
-          label: `${formData.label}_Prevalence`,
-          comment: `Prevalence for ${formData.label}`,
-          selectedClasses: ['Parameter', 'DeterministicParameter', 'EpidemiologicalParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(epidemiology.prevalence) },
-            { property: 'hasDataItemType', value: 'DI_Prevalence' },
-            ...(epidemiology.prevalenceSource ? [{ property: 'hasSource', value: epidemiology.prevalenceSource }] : [])
-          ],
-          objectProperties: []
-        });
-        epidemioParams.push(`${formData.label}_Prevalence`);
-        createdIndividuals.push({ type: 'Prevalence Parameter', name: prevParam.individual.label });
-      }
-
-      if (epidemiology.incidence) {
-        const incParam = await createIndividual({
-          label: `${formData.label}_Incidence`,
-          comment: `Incidence for ${formData.label}`,
-          selectedClasses: ['Parameter', 'DeterministicParameter', 'EpidemiologicalParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(epidemiology.incidence) },
-            { property: 'hasDataItemType', value: 'DI_Incidence' },
-            ...(epidemiology.incidenceSource ? [{ property: 'hasSource', value: epidemiology.incidenceSource }] : [])
-          ],
-          objectProperties: []
-        });
-        epidemioParams.push(`${formData.label}_Incidence`);
-        createdIndividuals.push({ type: 'Incidence Parameter', name: incParam.individual.label });
-      }
-
-      if (epidemiology.mortality) {
-        const mortParam = await createIndividual({
-          label: `${formData.label}_Mortality`,
-          comment: `Mortality for ${formData.label}`,
-          selectedClasses: ['Parameter', 'DeterministicParameter', 'EpidemiologicalParameter'],
-          datatypeProperties: [
-            { property: 'hasExpectedValue', value: parseFloat(epidemiology.mortality) },
-            ...(epidemiology.mortalitySource ? [{ property: 'hasSource', value: epidemiology.mortalitySource }] : [])
-          ],
-          objectProperties: []
-        });
-        epidemioParams.push(`${formData.label}_Mortality`);
-        createdIndividuals.push({ type: 'Mortality Parameter', name: mortParam.individual.label });
-      }
-
-      // 5. Crear el individuo Population
-      const populationObjectProps = [];
-
-      if (demographics.age) {
         populationObjectProps.push({ property: 'hasAge', value: `${formData.label}_Age` });
       }
 
-      if (demographics.femaleProportion) {
-        populationObjectProps.push({ property: 'hasSex', value: `${formData.label}_FemaleProportion` });
+      // 2. Sex (female proportion)
+      if (sexData.femaleProportion) {
+        const sexLabel = `${formData.label}_FemaleProportion`;
+        await createStochasticParameter(
+          { ...sexData, value: sexData.femaleProportion },
+          sexLabel,
+          sexData.comment || `Female proportion for ${formData.label} population`,
+          [],
+          [],
+          [{ property: 'isValueOfAttribute', value: 'Attribute_Sex' }]
+        );
+        populationObjectProps.push({ property: 'hasSex', value: sexLabel });
       }
 
+      // 3. Life expectancy
       if (lifeExpectancy.value) {
+        await createStochasticParameter(
+          lifeExpectancy,
+          `${formData.label}_LifeExpectancy`,
+          `Life expectancy for ${formData.label} population`
+        );
         populationObjectProps.push({ property: 'hasLifeExpectancy', value: `${formData.label}_LifeExpectancy` });
       }
 
-      // Agregar parámetros epidemiológicos
-      epidemioParams.forEach(paramName => {
-        populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: paramName });
-      });
+      // 4. Link epidemiological parameters from DiseasePage
+      if (diseaseData.label) {
+        if (diseaseData.prevalenceData?.value) populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Prevalence` });
+        if (diseaseData.incidenceData?.value)  populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Incidence` });
+        if (diseaseData.mortalityData?.value)  populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Mortality` });
+      }
 
-      const populationDataProps = [
-        ...(formData.comment ? [{ property: 'hasDescription', value: formData.comment }] : []),
-        ...(demographics.geographicLocation ? [{ property: 'hasGeographicalContext', value: demographics.geographicLocation }] : []),
-        ...(demographics.minAge ? [{ property: 'hasMinAge', value: parseFloat(demographics.minAge) }] : []),
-        ...(demographics.populationSize ? [{ property: 'hasSize', value: parseInt(demographics.populationSize) }] : [])
-      ];
+      // 5. Custom attributes
+      for (const attr of customAttributes) {
+        if (!attr.name || !attr.value) continue;
+        const sanitizedName  = attr.name.replace(/\s+/g, '_');
+        const attributeLabel = `Attribute_${sanitizedName}`;
+        const paramLabel     = `${formData.label}_${sanitizedName}_Parameter`;
 
-      const populationResult = await createIndividual({
+        await createIndividual({
+          label: attributeLabel,
+          comment: attr.description || `Custom attribute: ${attr.name}`,
+          selectedClasses: ['Attribute'],
+          datatypeProperties: attr.description ? [{ property: 'hasDescription', value: attr.description }] : [],
+          objectProperties: []
+        });
+
+        await createStochasticParameter(
+          attr, paramLabel,
+          `${attr.name} parameter for ${formData.label} population`,
+          [], [],
+          [{ property: 'isValueOfAttribute', value: attributeLabel }]
+        );
+
+        populationObjectProps.push({ property: 'usesAttributeValue', value: paramLabel });
+      }
+
+      // 6. Population individual
+      if (formData.comment)                populationDataProps.push({ property: 'hasDescription',        value: formData.comment });
+      if (demographics.geographicLocation) populationDataProps.push({ property: 'hasGeographicalContext', value: demographics.geographicLocation });
+      if (demographics.minAge)             populationDataProps.push({ property: 'hasMinAge',              value: parseFloat(demographics.minAge) });
+      if (demographics.maxAge)             populationDataProps.push({ property: 'hasMaxAge',              value: parseFloat(demographics.maxAge) });
+      if (demographics.populationSize)     populationDataProps.push({ property: 'hasSize',                value: parseInt(demographics.populationSize) });
+
+      await createIndividual({
         label: formData.label,
         comment: formData.comment,
         selectedClasses: ['Population'],
         datatypeProperties: populationDataProps,
         objectProperties: populationObjectProps
       });
+    });
+  };
 
-      createdIndividuals.push({ type: 'Population', name: populationResult.individual.label });
+  // ── Table data ────────────────────────────────────────────────────────────
+  const tableData = [
+    { category: 'General',      property: 'Nombre',              value: formData.label || '-' },
+    { category: 'General',      property: 'Descripción',         value: formData.comment || '-' },
+    { category: 'General',      property: 'Tamaño',              value: demographics.populationSize || '-' },
+    { category: 'Demografía',   property: 'Edad Media',          value: demographics.age || '-' },
+    { category: 'Demografía',   property: 'Edad Mínima',         value: demographics.minAge || '0' },
+    { category: 'Demografía',   property: 'Edad Máxima',         value: demographics.maxAge || '-' },
+    { category: 'Demografía',   property: 'Ubicación',           value: demographics.geographicLocation || '-' },
+    { category: 'Demografía',   property: 'Proporción Femenina', value: sexData.femaleProportion || '-' },
+    { category: 'Demografía',   property: 'Modo',                value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa',  property: 'Esperanza de Vida',   value: lifeExpectancy.value || '-' },
+    { category: 'Expectativa',  property: 'Modo',                value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa',  property: 'Fuente',              value: lifeExpectancy.source || '-' },
+    { category: 'Epidemiología',property: 'Prevalencia',         value: diseaseData.prevalenceData?.value || '-' },
+    { category: 'Epidemiología',property: 'Incidencia',          value: diseaseData.incidenceData?.value || '-' },
+    { category: 'Epidemiología',property: 'Mortalidad',          value: diseaseData.mortalityData?.value || '-' },
+    ...customAttributes.filter(a => a.name).map(a => ({
+      category: 'Personalizado', property: a.name, value: a.value || '-'
+    }))
+  ];
 
-      console.log('✅ Individuos creados:', createdIndividuals);
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-
-    } catch (err) {
-      console.error('❌ Error:', err);
-      setError(err.message || 'Error de conexión');
-    } finally {
-      setSaving(false);
+  const categoryColor = (cat) => {
+    switch (cat) {
+      case 'General':       return 'bg-slate-200 text-slate-600';
+      case 'Demografía':    return 'bg-emerald-100 text-emerald-700';
+      case 'Expectativa':   return 'bg-blue-100 text-blue-700';
+      case 'Epidemiología': return 'bg-rose-100 text-rose-700';
+      default:              return 'bg-purple-100 text-purple-600';
     }
   };
 
-  const tableData = [
-    { category: 'General', property: 'Nombre', value: formData.label || '-' },
-    { category: 'General', property: 'Descripción', value: formData.comment || '-' },
-    { category: 'General', property: 'Tamaño', value: demographics.populationSize || '-' },
-    { category: 'Demografía', property: 'Edad', value: demographics.age || '-' },
-    { category: 'Demografía', property: 'Edad Mínima', value: demographics.minAge || '-' },
-    { category: 'Demografía', property: 'Proporción Femenina', value: demographics.femaleProportion || '-' },
-    { category: 'Demografía', property: 'Ubicación', value: demographics.geographicLocation || '-' },
-    { category: 'Expectativa', property: 'Esperanza de Vida', value: lifeExpectancy.value || '-' },
-    { category: 'Expectativa', property: 'Fuente', value: lifeExpectancy.source || '-' },
-    { category: 'Epidemiología', property: 'Prevalencia', value: epidemiology.prevalence || '-' },
-    { category: 'Epidemiología', property: 'Fuente Prevalencia', value: epidemiology.prevalenceSource || '-' },
-    { category: 'Epidemiología', property: 'Incidencia', value: epidemiology.incidence || '-' },
-    { category: 'Epidemiología', property: 'Fuente Incidencia', value: epidemiology.incidenceSource || '-' },
-    { category: 'Epidemiología', property: 'Mortalidad', value: epidemiology.mortality || '-' },
-    { category: 'Epidemiología', property: 'Fuente Mortalidad', value: epidemiology.mortalitySource || '-' },
-  ];
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Mensajes */}
+      {/* Floating messages */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
-          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-blue-500 text-blue-800'
-            }`}>
+          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${
+            error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-blue-500 text-blue-800'
+          }`}>
             {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-blue-500" />}
             <p className="text-sm font-bold">{error || '¡Población y parámetros creados!'}</p>
           </div>
@@ -259,10 +201,11 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
 
       <div className="flex h-full w-full p-8 gap-8 overflow-hidden">
 
-        {/* PANEL IZQUIERDO: Formulario */}
+        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
           <div className="max-w-3xl space-y-6">
 
+            {/* Header */}
             <div className="bg-linear-to-br from-blue-700 via-blue-800 to-blue-900 rounded-3xl p-8 text-white">
               <div className="flex items-center space-x-3 mb-2">
                 <Users className="w-7 h-7" strokeWidth={2.5} />
@@ -271,36 +214,25 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
               <p className="text-blue-50/80 text-sm font-medium">Define la población y sus parámetros</p>
             </div>
 
-            {/* Información General */}
+            {/* General */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Book className="w-4 h-4 text-blue-600" />                </div>
-                <h2 className="text-lg font-bold text-slate-800">Información General</h2>
+                <div className="p-2 bg-blue-100 rounded-lg"><Book className="w-4 h-4 text-blue-600" /></div>
+                <h2 className="text-lg font-bold text-slate-800">General</h2>
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre <strong>*</strong></label>
-                  <input
-                    type="text"
-                    name="label"
-                    value={formData.label}
-                    onChange={handleInputChange}
+                  <input type="text" name="label" value={formData.label} onChange={handleInputChange}
                     placeholder="ej: Población con riesgo de enfermedad X"
-                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm"
-                  />
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm" />
                 </div>
-
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción <strong>*</strong></label>
-                  <textarea
-                    name="comment"
-                    value={formData.comment}
-                    onChange={handleInputChange}
+                  <textarea name="comment" value={formData.comment} onChange={handleInputChange}
                     placeholder="ej: Población en España con riesgo de contraer la enfermedad X debido a factores Y y Z."
                     rows="2"
-                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm resize-none"
-                  />
+                    className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm resize-none" />
                 </div>
               </div>
             </div>
@@ -308,69 +240,147 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
             {/* Demografía */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Users className="w-4 h-4 text-blue-600" />
-                </div>
+                <div className="p-2 bg-blue-100 rounded-lg"><Users className="w-4 h-4 text-blue-600" /></div>
                 <h2 className="text-lg font-bold text-slate-800">Demografía</h2>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-6">
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tamaño Poblacional</label>
+                    <input type="number" name="populationSize" value={demographics.populationSize} onChange={handleDemographicsChange}
+                      placeholder="540963"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Ubicación</label>
+                    <input type="text" name="geographicLocation" value={demographics.geographicLocation} onChange={handleDemographicsChange}
+                      placeholder="Spain @https://www.wikidata.org/wiki/q29"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none" />
+                  </div>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad (años)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    name="age"
-                    value={demographics.age}
-                    onChange={handleDemographicsChange}
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad Media (años)</label>
+                  <input type="number" step="0.1" name="age" value={demographics.age} onChange={handleDemographicsChange}
+                    placeholder="45"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none" />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Rango de Edad</label>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+                    <div className="flex justify-between px-1 text-[10px] font-bold text-slate-400">
+                      <span>0</span><span>25</span><span>50</span><span>75</span><span>100</span>
+                    </div>
+                    <div className="dual-range-wrapper">
+                      <div className="dual-range-track">
+                        <div className="dual-range-fill" style={{
+                          left: `${parseInt(demographics.minAge) || 0}%`,
+                          right: `${100 - (parseInt(demographics.maxAge) || 100)}%`
+                        }} />
+                      </div>
+                      <input type="range" min="0" max="100" step="1"
+                        value={demographics.minAge !== '' ? parseInt(demographics.minAge) : 0}
+                        onChange={(e) => {
+                          const val = Math.min(parseInt(e.target.value), (parseInt(demographics.maxAge) || 100) - 1);
+                          setDemographics({ ...demographics, minAge: String(val) });
+                        }}
+                        style={{ zIndex: (parseInt(demographics.minAge) || 0) > 95 ? 5 : 3 }}
+                      />
+                      <input type="range" min="0" max="100" step="1"
+                        value={demographics.maxAge !== '' ? parseInt(demographics.maxAge) : 100}
+                        onChange={(e) => {
+                          const val = Math.max(parseInt(e.target.value), (parseInt(demographics.minAge) || 0) + 1);
+                          setDemographics({ ...demographics, maxAge: String(val) });
+                        }}
+                        style={{ zIndex: 4 }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="text-center">
+                        <p className="text-xl font-bold text-blue-700">{demographics.minAge !== '' ? demographics.minAge : '0'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Mín</p>
+                      </div>
+                      <div className="flex-1 mx-4 border-t border-dashed border-slate-200" />
+                      <div className="text-center">
+                        <p className="text-xl font-bold text-blue-700">{demographics.maxAge !== '' ? demographics.maxAge : '100'}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Máx</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad Mínima</label>
+                      <input type="number" min="0" max="99" step="0.1" value={0}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') { setDemographics({ ...demographics, minAge: '' }); return; }
+                          setDemographics({ ...demographics, minAge: raw });
+                        }}
+                        placeholder="0"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad Máxima</label>
+                      <input type="number" min="1" max="100" step="0.1" value={demographics.maxAge}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') { setDemographics({ ...demographics, maxAge: '' }); return; }
+                          setDemographics({ ...demographics, maxAge: raw });
+                        }}
+                        placeholder="100"
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sexo */}
+            <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-blue-100 rounded-lg"><Users className="w-4 h-4 text-blue-600" /></div>
+                <h2 className="text-lg font-bold text-slate-800">Sexo (Proporción Femenina)</h2>
+              </div>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo de Configuración</label>
+                  <ToggleButton value={sexData.isStochastic}
+                    onChange={(e) => setSexData({ ...sexData, isStochastic: e.target.value })}
+                    option1="Simple (Determinístico)" option2="Avanzado (Segundo Orden)"
+                    name="isStochastic" color="blue" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad Mínima</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    name="minAge"
-                    value={demographics.minAge}
-                    onChange={handleDemographicsChange}
-                    placeholder="0"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Proporción Femenina (0-1)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="femaleProportion"
-                    value={demographics.femaleProportion}
-                    onChange={handleDemographicsChange}
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                    {sexData.isStochastic ? 'Valor Esperado (0-1)' : 'Proporción Femenina (0-1)'}
+                  </label>
+                  <input type="number" step="0.01" min="0" max="1" name="femaleProportion"
+                    value={sexData.femaleProportion}
+                    onChange={(e) => setSexData({ ...sexData, femaleProportion: e.target.value })}
                     placeholder="0.5"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
+                </div>
+                {sexData.isStochastic && (
+                  <StochasticConfig
+                    data={sexData}
+                    onChange={(e) => setSexData({ ...sexData, [e.target.name]: e.target.value })}
+                    color="blue" />
+                )}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
+                  <input type="text" name="source" value={sexData.source}
+                    onChange={(e) => setSexData({ ...sexData, source: e.target.value })}
+                    placeholder="INE 2023"
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tamaño Poblacional</label>
-                  <input
-                    type="number"
-                    name="populationSize"
-                    value={demographics.populationSize}
-                    onChange={handleDemographicsChange}
-                    placeholder="540963"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
-                </div>
-                <div className="space-y-2 col-span-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Ubicación</label>
-                  <input
-                    type="text"
-                    name="geographicLocation"
-                    value={demographics.geographicLocation}
-                    onChange={handleDemographicsChange}
-                    placeholder="Spain @https://www.wikidata.org/wiki/q29"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Comentario</label>
+                  <textarea name="comment" value={sexData.comment}
+                    onChange={(e) => setSexData({ ...sexData, comment: e.target.value })}
+                    rows="2" placeholder="Notas adicionales..."
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none resize-none" />
                 </div>
               </div>
             </div>
@@ -378,127 +388,124 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
             {/* Esperanza de Vida */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <ShieldCheck className="w-4 h-4 text-blue-600" />
-                </div>
+                <div className="p-2 bg-blue-100 rounded-lg"><ShieldCheck className="w-4 h-4 text-blue-600" /></div>
                 <h2 className="text-lg font-bold text-slate-800">Esperanza de Vida</h2>
               </div>
-              <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor (años)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    name="value"
-                    value={lifeExpectancy.value}
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo de Configuración</label>
+                  <ToggleButton value={lifeExpectancy.isStochastic}
+                    onChange={(e) => setLifeExpectancy({ ...lifeExpectancy, isStochastic: e.target.value })}
+                    option1="Simple (Determinístico)" option2="Avanzado (Estocástico)"
+                    name="isStochastic" color="blue" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                    {lifeExpectancy.isStochastic ? 'Valor Esperado (años)' : 'Esperanza de Vida (años)'}
+                  </label>
+                  <input type="number" step="0.1" name="value" value={lifeExpectancy.value}
                     onChange={handleLifeExpectancyChange}
                     placeholder="80.5"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
+                {lifeExpectancy.isStochastic && (
+                  <StochasticConfig
+                    data={lifeExpectancy}
+                    onChange={handleLifeExpectancyChange}
+                    color="blue" />
+                )}
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                  <input
-                    type="text"
-                    name="source"
-                    value={lifeExpectancy.source}
+                  <input type="text" name="source" value={lifeExpectancy.source}
                     onChange={handleLifeExpectancyChange}
                     placeholder="INE 2023"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                  />
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
                 </div>
               </div>
             </div>
 
-            {/* Epidemiología */}
+            {/* Atributos Personalizados */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Hospital className="w-4 h-4 text-blue-600" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg"><Plus className="w-4 h-4 text-blue-600" /></div>
+                  <h2 className="text-lg font-bold text-slate-800">Atributos Personalizados</h2>
                 </div>
-                <h2 className="text-lg font-bold text-slate-800">Epidemiología</h2>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 rounded-full border border-blue-200">
+                  <div className="w-2 h-2 bg-blue-600 rounded-full" />
+                  <span className="text-xs font-bold text-blue-700">
+                    {customAttributes.length} atributo{customAttributes.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
               </div>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Prevalencia</label>
-                    <input
-                      type="number"
-                      step="0.0000001"
-                      name="prevalence"
-                      value={epidemiology.prevalence}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="0.0000147885"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
+              <div className="space-y-3">
+                {customAttributes.map((attr) => (
+                  <div key={attr.id} className="bg-slate-50 rounded-2xl border border-blue-100 p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Atributo</span>
+                      <button type="button" onClick={() => attrHandlers.remove(attr.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre *</label>
+                        <input type="text" value={attr.name}
+                          onChange={(e) => attrHandlers.update(attr.id, 'name', e.target.value)}
+                          placeholder="ej: comorbilidad"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción</label>
+                        <input type="text" value={attr.description}
+                          onChange={(e) => attrHandlers.update(attr.id, 'description', e.target.value)}
+                          placeholder="ej: Proporción con comorbilidad"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo</label>
+                      <ToggleButton value={attr.isStochastic}
+                        onChange={(e) => attrHandlers.update(attr.id, 'isStochastic', e.target.value)}
+                        option1="Simple (Determinístico)" option2="Avanzado (Estocástico)"
+                        name="isStochastic" color="blue" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
+                        {attr.isStochastic ? 'Valor Esperado *' : 'Valor *'}
+                      </label>
+                      <input type="number" step="any" value={attr.value}
+                        onChange={(e) => attrHandlers.update(attr.id, 'value', e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                    </div>
+                    {attr.isStochastic && (
+                      <StochasticConfig
+                        data={attr}
+                        onChange={(e) => attrHandlers.update(attr.id, e.target.name, e.target.value)}
+                        color="blue" />
+                    )}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
+                      <input type="text" value={attr.source}
+                        onChange={(e) => attrHandlers.update(attr.id, 'source', e.target.value)}
+                        placeholder="ej: PubMed 2023"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                    <input
-                      type="text"
-                      name="prevalenceSource"
-                      value={epidemiology.prevalenceSource}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="Galicia NBS"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
+                ))}
+                <button type="button" onClick={attrHandlers.add}
+                  className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-linear-to-r from-blue-50 to-white hover:from-blue-100 hover:to-blue-50 border-2 border-dashed border-blue-300 hover:border-blue-400 rounded-2xl transition-all group">
+                  <div className="p-2 bg-blue-100 group-hover:bg-blue-200 rounded-lg transition-colors">
+                    <Plus className="w-4 h-4 text-blue-600" />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Incidencia</label>
-                    <input
-                      type="number"
-                      step="0.0001"
-                      name="incidence"
-                      value={epidemiology.incidence}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="0.0116"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                    <input
-                      type="text"
-                      name="incidenceSource"
-                      value={epidemiology.incidenceSource}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="Study 2023"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Mortalidad</label>
-                    <input
-                      type="number"
-                      step="0.001"
-                      name="mortality"
-                      value={epidemiology.mortality}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="0.052"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
-                    <input
-                      type="text"
-                      name="mortalitySource"
-                      value={epidemiology.mortalitySource}
-                      onChange={handleEpidemiologyChange}
-                      placeholder="WHO 2023"
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                </div>
+                  <span className="text-sm font-bold text-blue-700">Añadir nuevo atributo</span>
+                </button>
               </div>
             </div>
 
+            {/* Info note */}
             <div className="flex items-start space-x-3 p-4 bg-blue-50/50 rounded-xl border border-blue-100">
               <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
               <div className="text-xs text-blue-800 leading-relaxed">
@@ -506,18 +513,15 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
               </div>
             </div>
 
-            <button
-              onClick={handleSave}
-              disabled={saving || !formData.label}
-              className="w-full bg-linear-to-r from-blue-700 via-blue-800 to-blue-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-blue-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg"
-            >
+            <button onClick={handleSave} disabled={saving || !formData.label}
+              className="w-full bg-linear-to-r from-blue-700 via-blue-800 to-blue-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-blue-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg">
               <Save className="w-5 h-5" />
               <span className="text-lg">{saving ? 'Creando...' : 'Guardar parámetros'}</span>
             </button>
           </div>
         </div>
 
-        {/* PANEL DERECHO: Tabla */}
+        {/* ══ RIGHT PANEL: Table ══════════════════════════════════════════════ */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-blue-500 overflow-hidden">
 
@@ -546,23 +550,15 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
                   <div className="col-span-4">Atributo</div>
                   <div className="col-span-5">Valor Capturado</div>
                 </div>
-
                 {tableData.map((row, idx) => (
                   <div key={idx} className="grid grid-cols-12 items-center bg-slate-50/50 hover:bg-white hover:shadow-md hover:scale-[1.01] transition-all duration-200 p-4 rounded-2xl border border-slate-200/50">
                     <div className="col-span-3">
-                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${row.category === 'General' ? 'bg-slate-200 text-slate-600' :
-                        row.category === 'Demografía' ? 'bg-emerald-100 text-emerald-700' :
-                          row.category === 'Expectativa' ? 'bg-blue-100 text-blue-500' :
-                            'bg-rose-100 text-rose-600'
-                        }`}>
+                      <span className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase ${categoryColor(row.category)}`}>
                         {row.category}
                       </span>
                     </div>
-                    <div className="col-span-4 text-sm font-bold text-slate-400 tracking-tight">
-                      {row.property}
-                    </div>
-                    <div className={`col-span-5 text-sm font-semibold truncate pr-4 ${row.value === '-' ? 'text-slate-300 italic font-normal' : 'text-slate-800'
-                      }`}>
+                    <div className="col-span-4 text-sm font-bold text-slate-400 tracking-tight">{row.property}</div>
+                    <div className={`col-span-5 text-sm font-semibold truncate pr-4 ${row.value === '-' ? 'text-slate-300 italic font-normal' : 'text-slate-800'}`}>
                       {row.value}
                     </div>
                   </div>
@@ -580,20 +576,20 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
       </div>
 
       <style jsx>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: rgba(226, 232, 240, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(29, 78, 216, 0.3);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(29, 78, 216, 0.5);
-        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(29, 78, 216, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(29, 78, 216, 0.5); }
+
+        /* ── Dual Range Slider ── */
+        .dual-range-wrapper { position: relative; height: 44px; display: flex; align-items: center; }
+        .dual-range-track { position: absolute; left: 0; right: 0; height: 6px; background: #e2e8f0; border-radius: 999px; pointer-events: none; }
+        .dual-range-fill { position: absolute; height: 100%; background: rgb(59, 130, 246); border-radius: 999px; }
+        .dual-range-wrapper input[type="range"] { position: absolute; width: 100%; height: 6px; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; margin: 0; padding: 0; }
+        .dual-range-wrapper input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: all; width: 22px; height: 22px; border-radius: 50%; background: white; border: 2.5px solid rgb(59, 130, 246); cursor: grab; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3), 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.15s, box-shadow 0.15s; }
+        .dual-range-wrapper input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); box-shadow: 0 3px 10px rgba(59, 130, 246, 0.45); }
+        .dual-range-wrapper input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.25); }
+        .dual-range-wrapper input[type="range"]::-moz-range-thumb { pointer-events: all; width: 20px; height: 20px; border-radius: 50%; background: white; border: 2.5px solid rgb(59, 130, 246); cursor: grab; box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3); }
       `}</style>
     </div>
   );
