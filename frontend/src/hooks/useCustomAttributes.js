@@ -25,6 +25,9 @@ function useCustomAttributes(initial = []) {
 
     remove: (id) =>
       setAttributes(prev => prev.filter(attr => attr.id !== id)),
+
+    reset: (newList = []) =>
+      setAttributes(newList),
   };
 
   return [attributes, handlers];

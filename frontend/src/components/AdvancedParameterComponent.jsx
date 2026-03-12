@@ -421,8 +421,6 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
                           stroke={colors.strokeRGB} strokeWidth="1" strokeDasharray="2,3" opacity="0.45" />
                         <line x1={curve.mu1mSVGx} y1="52" x2={curve.mu1pSVGx} y2="52"
                           stroke={colors.strokeDarkRGB} strokeWidth="1" opacity="0.6" />
-                        <text x={curve.muSVGx} y="49" textAnchor="middle" fontSize="6"
-                          fill={colors.strokeDarkRGB} opacity="0.85" fontWeight="bold">68%</text>
                       </>
                     );
                   })()}

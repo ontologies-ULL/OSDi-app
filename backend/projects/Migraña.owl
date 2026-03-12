@@ -3950,81 +3950,10 @@ Examples:
   <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isAssessedIntervention>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Diabetes Real">
-  <rdf:type rdf:resource="#Disease"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Diabetes Real</rdfs:label>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Age">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <isValueOfAttribute rdf:resource="#Attribute_Age"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Age</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Age of the Poblacion con diabetes population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">50.1</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_FemaleProportion">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <isValueOfAttribute rdf:resource="#Attribute_Sex"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_FemaleProportion</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Female proportion in Poblacion con diabetes population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.43</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_LifeExpectancy">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_LifeExpectancy</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Life expectancy for Poblacion con diabetes population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">80.5</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Prevalence">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Prevalence</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Prevalence for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">4.2e-06</hasExpectedValue>
-  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Incidence">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Incidence</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Incidence for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.0028</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Mortality">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Mortality</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Mortality for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.025</hasExpectedValue>
-  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes">
-  <rdf:type rdf:resource="#Population"/>
-  <hasAge rdf:resource="#Poblacion con diabetes_Age"/>
-  <hasSex rdf:resource="#Poblacion con diabetes_FemaleProportion"/>
-  <hasLifeExpectancy rdf:resource="#Poblacion con diabetes_LifeExpectancy"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Prevalence"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Incidence"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Mortality"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">descripcion de prueba</rdfs:comment>
-  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">descripcion de prueba</hasDescription>
-  <hasGeographicalContext rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Spain @https://www.wikidata.org/wiki/q29</hasGeographicalContext>
-  <hasMinAge rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">0</hasMinAge>
-  <hasSize rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">41234123</hasSize>
-</owl:NamedIndividual>
+<rdf:Description rdf:about="#Intervención de prueba">
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">fasdffd</rdfs:comment>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">fasdffd</hasDescription>
+</rdf:Description>
 
 <rdf:Description>
   <opla:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">100.61244444225647</opla:entityPositionX>

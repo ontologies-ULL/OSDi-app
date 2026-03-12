@@ -3950,27 +3950,10 @@ Examples:
   <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isAssessedIntervention>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Testing">
-  <rdf:type rdf:resource="#Disease"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Testing</rdfs:label>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#asdfasdf_Age">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <isValueOfAttribute rdf:resource="#Attribute_Age"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">asdfasdf_Age</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Age of the asdfasdf population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">1.1</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#asdfasdf">
-  <rdf:type rdf:resource="#Population"/>
-  <hasAge rdf:resource="#asdfasdf_Age"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">asdfasdf</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">asdfasd</rdfs:comment>
-  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">asdfasd</hasDescription>
-  <hasMinAge rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.7</hasMinAge>
+<owl:NamedIndividual rdf:about="#Intervención de prueba 12">
+  <rdf:type rdf:resource="#TherapeuticIntervention"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba 12</rdfs:label>
+  <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</isAssessedIntervention>
 </owl:NamedIndividual>
 
 <rdf:Description>

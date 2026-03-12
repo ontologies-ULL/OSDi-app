@@ -38,6 +38,11 @@ function useExpandableList(initialItems, emptyTemplate) {
       setExpanded(prev =>
         prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
       ),
+
+    reset: (newItems) => {
+      setItems(newItems?.length > 0 ? newItems : [{ ...emptyTemplate }]);
+      setExpanded([0]);
+    },
   };
 
   return [items, expanded, handlers];

@@ -1,70 +1,94 @@
 import React, { useState, useEffect } from 'react';
-import { Book, Save, AlertCircle, CheckCircle, Users, ShieldCheck, Table as TableIcon, Plus, Trash2 } from 'lucide-react';
+import { Book, Save, AlertCircle, CheckCircle, Users, ShieldCheck, Table as TableIcon, Plus, Trash2, Pencil } from 'lucide-react';
 import ToggleButton from '../components/ToggleButton';
 import { StochasticConfig } from '../components/AdvancedParameterComponent';
 import useEpiParameter from '../hooks/useEpiParameter';
 import useSaveStatus from '../hooks/useSaveStatus';
 import useCustomAttributes from '../hooks/useCustomAttributes';
 import { createIndividual, createStochasticParameter } from '../api/ontology';
+import EpidemiologicalParameterCard from '../components/EpidemiologicalParameterCard';
 
-function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, setPopulationData, developmentData }) {
-  const [formData, setFormData] = useState({
-    label: populationData.label || '',
-    comment: populationData.comment || '',
-  });
+// ── Empty templates ────────────────────────────────────────────────────────────
+const EMPTY_FORM = { label: '', comment: '' };
 
-  const [demographics, setDemographics] = useState({
-    age: populationData.demographics?.age || '',
-    minAge: populationData.demographics?.minAge || '',
-    maxAge: populationData.demographics?.maxAge || '',
-    geographicLocation: populationData.demographics?.geographicLocation || '',
-    populationSize: populationData.demographics?.populationSize || ''
-  });
+const EMPTY_DEMOGRAPHICS = {
+  age: '', minAge: '', maxAge: '', geographicLocation: '', populationSize: ''
+};
 
-  const [sexData, setSexData] = useState({
-    isStochastic: false,
-    femaleProportion: '',
-    source: '',
-    comment: '',
-    distributionType: 'Beta',
-    mean: '', standardDeviation: '',
-    lowerBound: '', upperBound: '',
-    alpha: '', beta: '', lambda: '',
-    confidenceInterval: '95', sampleSize: ''
-  });
+const EMPTY_SEX = {
+  isStochastic: false, femaleProportion: '', source: '', comment: '',
+  distributionType: 'Beta', mean: '', standardDeviation: '',
+  lowerBound: '', upperBound: '', alpha: '', beta: '', lambda: '',
+  confidenceInterval: '95', sampleSize: ''
+};
 
-  const [lifeExpectancy, handleLifeExpectancyChange, setLifeExpectancy] = useEpiParameter({
-    value: populationData.lifeExpectancy?.value || '',
-    source: populationData.lifeExpectancy?.source || '',
-    distributionType: 'Normal'
-  });
+const EMPTY_LIFE_EXPECTANCY = {
+  isStochastic: false, value: '', source: '', distributionType: 'Normal',
+  mean: '', standardDeviation: '', lowerBound: '', upperBound: '',
+  alpha: '', beta: '', lambda: '', confidenceInterval: '95', sampleSize: ''
+};
 
-  const [customAttributes, attrHandlers] = useCustomAttributes(populationData.customAttributes || []);
-
+function PopulationPage({ onNavigate, currentPage, diseaseData, populations, setPopulations, populationToEdit, onPopulationToEditHandled }) {
+  const [formData, setFormData] = useState({ ...EMPTY_FORM });
+  const [demographics, setDemographics] = useState({ ...EMPTY_DEMOGRAPHICS });
+  const [sexData, setSexData] = useState({ ...EMPTY_SEX });
+  const [lifeExpectancy, handleLifeExpectancyChange, setLifeExpectancy] = useEpiParameter({ ...EMPTY_LIFE_EXPECTANCY });
+  const [prevalenceData, handlePrevalenceChange, setPrevalenceData] = useEpiParameter();
+  const [incidenceData, handleIncidenceChange, setIncidenceData] = useEpiParameter();
+  const [mortalityData, handleMortalityChange, setMortalityData] = useEpiParameter();
+  const [customAttributes, attrHandlers] = useCustomAttributes([]);
+  const [editingIndex, setEditingIndex] = useState(null);
   const { saving, success, error, withSave } = useSaveStatus();
-
-  // ── Sync to parent ────────────────────────────────────────────────────────
-  useEffect(() => {
-    setPopulationData({
-      label: formData.label,
-      comment: formData.comment,
-      demographics,
-      sexData,
-      lifeExpectancy,
-      customAttributes
-    });
-  }, [formData, demographics, sexData, lifeExpectancy, customAttributes, setPopulationData]);
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleDemographicsChange = (e) => setDemographics({ ...demographics, [e.target.name]: e.target.value });
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  // ── Load a saved population into the form ──────────────────────────────────
+  const loadPopulation = (index) => {
+    const pop = populations[index];
+    setFormData({ ...pop.formData });
+    setDemographics({ ...pop.demographics });
+    setSexData({ ...pop.sexData });
+    setLifeExpectancy({ ...pop.lifeExpectancy });
+    if (pop.prevalenceData) setPrevalenceData({ ...pop.prevalenceData });
+    if (pop.incidenceData) setIncidenceData({ ...pop.incidenceData });
+    if (pop.mortalityData) setMortalityData({ ...pop.mortalityData });
+    attrHandlers.reset(pop.customAttributes.map(a => ({ ...a })));
+    setEditingIndex(index);
+  };
+
+  // ── Auto-load (or reset) population selected from Navbar dropdown ──────────
+  useEffect(() => {
+    if (populationToEdit !== null) {
+      if (populationToEdit === -1) {
+        cancelEdit();
+      } else {
+        loadPopulation(populationToEdit);
+      }
+      onPopulationToEditHandled();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [populationToEdit]);
+
+  const cancelEdit = () => {
+    setFormData({ ...EMPTY_FORM });
+    setDemographics({ ...EMPTY_DEMOGRAPHICS });
+    setSexData({ ...EMPTY_SEX });
+    setLifeExpectancy({ ...EMPTY_LIFE_EXPECTANCY });
+    setPrevalenceData({});
+    setIncidenceData({});
+    setMortalityData({});
+    attrHandlers.reset([]);
+    setEditingIndex(null);
+  };
+
+  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (!formData.label) return;
 
     withSave(async () => {
       const populationObjectProps = [];
-      const populationDataProps   = [];
+      const populationDataProps = [];
 
       // 1. Age
       if (demographics.age) {
@@ -102,19 +126,46 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
         populationObjectProps.push({ property: 'hasLifeExpectancy', value: `${formData.label}_LifeExpectancy` });
       }
 
-      // 4. Link epidemiological parameters from DiseasePage
+      // 4. Epidemiological parameters
       if (diseaseData.label) {
-        if (diseaseData.prevalenceData?.value) populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Prevalence` });
-        if (diseaseData.incidenceData?.value)  populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Incidence` });
-        if (diseaseData.mortalityData?.value)  populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Mortality` });
+        if (prevalenceData.value) {
+          await createStochasticParameter(
+            prevalenceData,
+            `${diseaseData.label}_Prevalence`,
+            `Prevalence for ${diseaseData.label}`,
+            ['EpidemiologicalParameter'],
+            [{ property: 'hasDataItemType', value: 'DI_Prevalence' }]
+          );
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Prevalence` });
+        }
+        if (incidenceData.value) {
+          await createStochasticParameter(
+            incidenceData,
+            `${diseaseData.label}_Incidence`,
+            `Incidence for ${diseaseData.label}`,
+            ['EpidemiologicalParameter'],
+            [{ property: 'hasDataItemType', value: 'DI_Incidence' }]
+          );
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Incidence` });
+        }
+        if (mortalityData.value) {
+          await createStochasticParameter(
+            mortalityData,
+            `${diseaseData.label}_Mortality`,
+            `Mortality for ${diseaseData.label}`,
+            ['EpidemiologicalParameter'],
+            []
+          );
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Mortality` });
+        }
       }
 
       // 5. Custom attributes
       for (const attr of customAttributes) {
         if (!attr.name || !attr.value) continue;
-        const sanitizedName  = attr.name.replace(/\s+/g, '_');
+        const sanitizedName = attr.name.replace(/\s+/g, '_');
         const attributeLabel = `Attribute_${sanitizedName}`;
-        const paramLabel     = `${formData.label}_${sanitizedName}_Parameter`;
+        const paramLabel = `${formData.label}_${sanitizedName}_Parameter`;
 
         await createIndividual({
           label: attributeLabel,
@@ -135,11 +186,11 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
       }
 
       // 6. Population individual
-      if (formData.comment)                populationDataProps.push({ property: 'hasDescription',        value: formData.comment });
+      if (formData.comment) populationDataProps.push({ property: 'hasDescription', value: formData.comment });
       if (demographics.geographicLocation) populationDataProps.push({ property: 'hasGeographicalContext', value: demographics.geographicLocation });
-      if (demographics.minAge)             populationDataProps.push({ property: 'hasMinAge',              value: parseFloat(demographics.minAge) });
-      if (demographics.maxAge)             populationDataProps.push({ property: 'hasMaxAge',              value: parseFloat(demographics.maxAge) });
-      if (demographics.populationSize)     populationDataProps.push({ property: 'hasSize',                value: parseInt(demographics.populationSize) });
+      if (demographics.minAge) populationDataProps.push({ property: 'hasMinAge', value: parseFloat(demographics.minAge) });
+      if (demographics.maxAge) populationDataProps.push({ property: 'hasMaxAge', value: parseFloat(demographics.maxAge) });
+      if (demographics.populationSize) populationDataProps.push({ property: 'hasSize', value: parseInt(demographics.populationSize) });
 
       await createIndividual({
         label: formData.label,
@@ -148,26 +199,55 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
         datatypeProperties: populationDataProps,
         objectProperties: populationObjectProps
       });
+
+      // 7. Save snapshot to list
+      const snapshot = {
+        formData: { ...formData },
+        demographics: { ...demographics },
+        sexData: { ...sexData },
+        lifeExpectancy: { ...lifeExpectancy },
+        prevalenceData: { ...prevalenceData },
+        incidenceData: { ...incidenceData },
+        mortalityData: { ...mortalityData },
+        customAttributes: customAttributes.map(a => ({ ...a })),
+      };
+
+      if (editingIndex !== null) {
+        setPopulations(prev => prev.map((item, i) => i === editingIndex ? snapshot : item));
+        setEditingIndex(null);
+      } else {
+        setPopulations(prev => [...prev, snapshot]);
+      }
+
+      // Reset form
+      setFormData({ ...EMPTY_FORM });
+      setDemographics({ ...EMPTY_DEMOGRAPHICS });
+      setSexData({ ...EMPTY_SEX });
+      setLifeExpectancy({ ...EMPTY_LIFE_EXPECTANCY });
+      setPrevalenceData({});
+      setIncidenceData({});
+      setMortalityData({});
+      attrHandlers.reset([]);
     });
   };
 
-  // ── Table data ────────────────────────────────────────────────────────────
+  // ── Table data ─────────────────────────────────────────────────────────────
   const tableData = [
-    { category: 'General',      property: 'Nombre',              value: formData.label || '-' },
-    { category: 'General',      property: 'Descripción',         value: formData.comment || '-' },
-    { category: 'General',      property: 'Tamaño',              value: demographics.populationSize || '-' },
-    { category: 'Demografía',   property: 'Edad Media',          value: demographics.age || '-' },
-    { category: 'Demografía',   property: 'Edad Mínima',         value: demographics.minAge || '0' },
-    { category: 'Demografía',   property: 'Edad Máxima',         value: demographics.maxAge || '-' },
-    { category: 'Demografía',   property: 'Ubicación',           value: demographics.geographicLocation || '-' },
-    { category: 'Demografía',   property: 'Proporción Femenina', value: sexData.femaleProportion || '-' },
-    { category: 'Demografía',   property: 'Modo',                value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Expectativa',  property: 'Esperanza de Vida',   value: lifeExpectancy.value || '-' },
-    { category: 'Expectativa',  property: 'Modo',                value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Expectativa',  property: 'Fuente',              value: lifeExpectancy.source || '-' },
-    { category: 'Epidemiología',property: 'Prevalencia',         value: diseaseData.prevalenceData?.value || '-' },
-    { category: 'Epidemiología',property: 'Incidencia',          value: diseaseData.incidenceData?.value || '-' },
-    { category: 'Epidemiología',property: 'Mortalidad',          value: diseaseData.mortalityData?.value || '-' },
+    { category: 'General', property: 'Nombre', value: formData.label || '-' },
+    { category: 'General', property: 'Descripción', value: formData.comment || '-' },
+    { category: 'General', property: 'Tamaño', value: demographics.populationSize || '-' },
+    { category: 'Demografía', property: 'Edad Media', value: demographics.age || '-' },
+    { category: 'Demografía', property: 'Edad Mínima', value: demographics.minAge || '0' },
+    { category: 'Demografía', property: 'Edad Máxima', value: demographics.maxAge || '-' },
+    { category: 'Demografía', property: 'Ubicación', value: demographics.geographicLocation || '-' },
+    { category: 'Demografía', property: 'Proporción Femenina', value: sexData.femaleProportion || '-' },
+    { category: 'Demografía', property: 'Modo', value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa', property: 'Esperanza de Vida', value: lifeExpectancy.value || '-' },
+    { category: 'Expectativa', property: 'Modo', value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa', property: 'Fuente', value: lifeExpectancy.source || '-' },
+    { category: 'Epidemiología', property: 'Prevalencia', value: prevalenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Incidencia', value: incidenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Mortalidad', value: mortalityData.value || '-' },
     ...customAttributes.filter(a => a.name).map(a => ({
       category: 'Personalizado', property: a.name, value: a.value || '-'
     }))
@@ -175,26 +255,25 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
 
   const categoryColor = (cat) => {
     switch (cat) {
-      case 'General':       return 'bg-slate-200 text-slate-600';
-      case 'Demografía':    return 'bg-emerald-100 text-emerald-700';
-      case 'Expectativa':   return 'bg-blue-100 text-blue-700';
+      case 'General': return 'bg-slate-200 text-slate-600';
+      case 'Demografía': return 'bg-emerald-100 text-emerald-700';
+      case 'Expectativa': return 'bg-blue-100 text-blue-700';
       case 'Epidemiología': return 'bg-rose-100 text-rose-700';
-      default:              return 'bg-purple-100 text-purple-600';
+      default: return 'bg-purple-100 text-purple-600';
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
       {/* Floating messages */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
-          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${
-            error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-blue-500 text-blue-800'
-          }`}>
+          <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-blue-500 text-blue-800'
+            }`}>
             {error ? <AlertCircle className="w-5 h-5 text-rose-500" /> : <CheckCircle className="w-5 h-5 text-blue-500" />}
-            <p className="text-sm font-bold">{error || '¡Población y parámetros creados!'}</p>
+            <p className="text-sm font-bold">{error || (editingIndex !== null ? '¡Población actualizada!' : '¡Población y parámetros creados!')}</p>
           </div>
         </div>
       )}
@@ -203,7 +282,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
 
         {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
-          <div className="max-w-3xl space-y-6">
+          <div className="max-w-3xl space-y-6 pb-12">
 
             {/* Header */}
             <div className="bg-linear-to-br from-blue-700 via-blue-800 to-blue-900 rounded-3xl p-8 text-white">
@@ -213,6 +292,16 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
               </div>
               <p className="text-blue-50/80 text-sm font-medium">Define la población y sus parámetros</p>
             </div>
+
+            {/* Edit mode banner */}
+            {editingIndex !== null && (
+              <div className="flex items-center justify-between px-5 py-3 bg-amber-50 border-2 border-amber-300 rounded-2xl">
+                <div className="flex items-center gap-2 text-amber-800">
+                  <Pencil className="w-4 h-4" />
+                  <span className="text-sm font-bold">Editando: <span className="text-amber-900">{populations[editingIndex]?.formData.label}</span></span>
+                </div>
+              </div>
+            )}
 
             {/* General */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
@@ -313,7 +402,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Edad Mínima</label>
-                      <input type="number" min="0" max="99" step="0.1" value={0}
+                      <input type="number" min="0" max="99" step="0.1" value={demographics.minAge}
                         onChange={(e) => {
                           const raw = e.target.value;
                           if (raw === '') { setDemographics({ ...demographics, minAge: '' }); return; }
@@ -424,6 +513,11 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
               </div>
             </div>
 
+            {/* Parámetros Epidemiológicos */}
+            <EpidemiologicalParameterCard title="Prevalencia" data={prevalenceData} onChange={handlePrevalenceChange} valuePlaceholder="0.0000147885" valueStep="0.0000001" />
+            <EpidemiologicalParameterCard title="Incidencia" data={incidenceData} onChange={handleIncidenceChange} valuePlaceholder="0.0116" valueStep="0.0001" />
+            <EpidemiologicalParameterCard title="Mortalidad" data={mortalityData} onChange={handleMortalityChange} valuePlaceholder="0.052" valueStep="0.001" />
+
             {/* Atributos Personalizados */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
@@ -516,7 +610,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populationData, 
             <button onClick={handleSave} disabled={saving || !formData.label}
               className="w-full bg-linear-to-r from-blue-700 via-blue-800 to-blue-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-blue-500/30 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg">
               <Save className="w-5 h-5" />
-              <span className="text-lg">{saving ? 'Creando...' : 'Guardar parámetros'}</span>
+              <span className="text-lg">{saving ? 'Guardando...' : editingIndex !== null ? 'Actualizar Población' : 'Guardar Población'}</span>
             </button>
           </div>
         </div>

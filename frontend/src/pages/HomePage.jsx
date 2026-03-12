@@ -14,7 +14,7 @@ import useProjects from '../hooks/useProjects';
 const API_BASE_URL = 'http://localhost:8000';
 
 const DISEASE_ICONS = [DiabetesIcon, HeartDiseaseIcon, CancerIcon, RespiratoryIcon, AlzheimerIcon];
-const ICON_COLORS   = ['emerald', 'rose', 'purple', 'blue', 'amber'];
+const ICON_COLORS = ['emerald', 'rose', 'purple', 'blue', 'amber'];
 
 const STEPS = [
   'Completa los formularios de cada aspecto clave de la enfermedad.',
@@ -36,7 +36,7 @@ function HomePage({ onNavigate }) {
   const { projects, loading: loadingProjects } = useProjects(user);
 
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [error, setError] = useState('');
   const [showAllProjects, setShowAllProjects] = useState(false);
 
   if (!user) {
@@ -79,7 +79,7 @@ function HomePage({ onNavigate }) {
   };
 
   const displayedProjects = showAllProjects ? projects : projects.slice(0, 4);
-  const hasMoreProjects   = projects.length > 4;
+  const hasMoreProjects = projects.length > 4;
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
@@ -187,11 +187,10 @@ function HomePage({ onNavigate }) {
                 <div className="mt-4 flex justify-center">
                   <button
                     onClick={() => setShowAllProjects(prev => !prev)}
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl transition-all duration-200 cursor-pointer font-semibold ${
-                      showAllProjects
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-xl transition-all duration-200 cursor-pointer font-semibold ${showAllProjects
                         ? 'bg-slate-200 text-slate-800 hover:bg-slate-300'
                         : 'bg-slate-900 text-white hover:bg-slate-800'
-                    }`}
+                      }`}
                   >
                     <span>
                       {showAllProjects ? 'Mostrar menos' : `Mostrar más (${projects.length - 4} proyecto/s)`}

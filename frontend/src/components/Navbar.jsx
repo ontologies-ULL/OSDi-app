@@ -5,38 +5,59 @@ const API_BASE_URL = 'http://localhost:8000';
 
 const navItems = [
   { id: 'home', label: 'Inicio', icon: Home },
-  { id: 'disease', label: 'Enfermedad', icon: Stethoscope, hasDropdown: true },
-  { id: 'population', label: 'Población', icon: TrendingUp },
-  { id: 'interventions', label: 'Intervenciones', icon: Pill }
+  { id: 'disease', label: 'Enfermedad', icon: Stethoscope, hasDiseasesDropdown: true },
+  { id: 'population', label: 'Población', icon: TrendingUp, hasPopulationsDropdown: true },
+  { id: 'interventions', label: 'Intervenciones', icon: Pill, hasInterventionsDropdown: true }
 ];
 
-const diseaseDropdownOptions = [
-  { id: 'disease', label: 'Enfermedad', clickable: true },
-  { id: 'progression', label: 'Progresión', clickable: false },
-  { id: 'development', label: 'Desarrollo', clickable: false },
-  { id: 'stage', label: 'Etapa', clickable: false }
-];
-
-function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
+function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout, diseases = [], onSelectDisease, populations = [], onSelectPopulation, interventions = [], onSelectIntervention }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null);
-  const [showDiseaseDropdown, setShowDiseaseDropdown] = useState(false);
+  const [showDiseasesDropdown, setShowDiseasesDropdown] = useState(false);
+  const [showPopulationsDropdown, setShowPopulationsDropdown] = useState(false);
+  const [showInterventionsDropdown, setShowInterventionsDropdown] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [projectName, setProjectName] = useState('');
-  const dropdownRef = useRef(null);
+  const diseasesDropdownRef = useRef(null);
+  const populationsDropdownRef = useRef(null);
+  const interventionsDropdownRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowDiseaseDropdown(false);
+      if (diseasesDropdownRef.current && !diseasesDropdownRef.current.contains(event.target)) {
+        setShowDiseasesDropdown(false);
       }
     };
-    if (showDiseaseDropdown) {
+    if (showDiseasesDropdown) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showDiseaseDropdown]);
+  }, [showDiseasesDropdown]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (populationsDropdownRef.current && !populationsDropdownRef.current.contains(event.target)) {
+        setShowPopulationsDropdown(false);
+      }
+    };
+    if (showPopulationsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPopulationsDropdown]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (interventionsDropdownRef.current && !interventionsDropdownRef.current.contains(event.target)) {
+        setShowInterventionsDropdown(false);
+      }
+    };
+    if (showInterventionsDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showInterventionsDropdown]);
 
   // Inicializar el nombre del proyecto con el nombre de la enfermedad
   useEffect(() => {
@@ -148,12 +169,212 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
             <div className="flex items-center justify-center space-x-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = currentPage === item.id;
+                const diseasePages = ['disease', 'progression', 'development', 'stage'];
+                const isActive = item.hasDiseasesDropdown
+                  ? diseasePages.includes(currentPage)
+                  : currentPage === item.id;
 
+                // ── Enfermedades dropdown ────────────────────────────────────
+                if (item.hasDiseasesDropdown) {
+                  const hasItems = diseases.length > 0;
+                  return (
+                    <div key={item.id} className="relative" ref={diseasesDropdownRef}>
+                      <button
+                        onClick={(e) => {
+                          if (hasItems) {
+                            e.stopPropagation();
+                            setShowDiseasesDropdown(!showDiseasesDropdown);
+                          } else {
+                            handleNavClick(item.id);
+                          }
+                        }}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                          ${isActive
+                            ? 'bg-slate-800 text-white border border-slate-400'
+                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                        {hasItems && (
+                          <>
+                            <span className="bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{diseases.length}</span>
+                            <ChevronDown className={`w-3 h-3 transition-transform ${showDiseasesDropdown ? 'rotate-180' : ''}`} />
+                          </>
+                        )}
+                      </button>
+
+                      {hasItems && showDiseasesDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
+                          <button
+                            onClick={() => { onSelectDisease(-1); setShowDiseasesDropdown(false); }}
+                            className="w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 text-slate-200 hover:bg-slate-700"
+                          >
+                            <Icon className="w-3.5 h-3.5 text-emerald-400" />
+                            Nueva enfermedad
+                          </button>
+                          <div className="border-t border-slate-700 mx-3 my-1" />
+                          <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Guardadas</p>
+                          <div className="max-h-60 overflow-y-auto">
+                            {diseases.map((dis, index) => (
+                              <button
+                                key={index}
+                                onClick={() => { onSelectDisease(index); setShowDiseasesDropdown(false); }}
+                                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-slate-700 flex items-center gap-2 group"
+                              >
+                                <span className="text-slate-200 font-medium truncate flex-1">{dis.diseaseData.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // ── Poblaciones dropdown ─────────────────────────────────────
+                if (item.hasPopulationsDropdown) {
+                  const hasItems = populations.length > 0;
+                  return (
+                    <div key={item.id} className="relative" ref={populationsDropdownRef}>
+                      <button
+                        onClick={(e) => {
+                          if (hasItems) {
+                            e.stopPropagation();
+                            setShowPopulationsDropdown(!showPopulationsDropdown);
+                          } else {
+                            handleNavClick(item.id);
+                          }
+                        }}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                          ${currentPage === item.id
+                            ? 'bg-slate-800 text-white border border-slate-400'
+                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                        {hasItems && (
+                          <>
+                            <span className="bg-blue-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{populations.length}</span>
+                            <ChevronDown className={`w-3 h-3 transition-transform ${showPopulationsDropdown ? 'rotate-180' : ''}`} />
+                          </>
+                        )}
+                      </button>
+
+                      {hasItems && showPopulationsDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
+                          {/* Nueva población */}
+                          <button
+                            onClick={() => {
+                              onSelectPopulation(-1);
+                              setShowPopulationsDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2 text-slate-200 hover:bg-slate-700"
+                          >
+                            <Icon className="w-3.5 h-3.5 text-blue-400" />
+                            Nueva población
+                          </button>
+                          {/* Divider + list */}
+                          <div className="border-t border-slate-700 mx-3 my-1" />
+                          <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Guardadas</p>
+                          <div className="max-h-60 overflow-y-auto">
+                            {populations.map((pop, index) => (
+                              <button
+                                key={index}
+                                onClick={() => {
+                                  onSelectPopulation(index);
+                                  setShowPopulationsDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-slate-700 flex items-center justify-between gap-2 group"
+                              >
+                                <span className="text-slate-200 font-medium truncate flex-1">{pop.formData.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // ── Intervenciones dropdown ──────────────────────────────────
+                if (item.hasInterventionsDropdown) {
+                  const hasItems = interventions.length > 0;
+                  return (
+                    <div key={item.id} className="relative" ref={interventionsDropdownRef}>
+                      <button
+                        onClick={(e) => {
+                          if (hasItems) {
+                            e.stopPropagation();
+                            setShowInterventionsDropdown(!showInterventionsDropdown);
+                          } else {
+                            handleNavClick(item.id);
+                          }
+                        }}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
+                          ${currentPage === item.id
+                            ? 'bg-slate-800 text-white border border-slate-400'
+                            : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'}`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{item.label}</span>
+                        {hasItems && (
+                          <>
+                            <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full leading-none">{interventions.length}</span>
+                            <ChevronDown className={`w-3 h-3 transition-transform ${showInterventionsDropdown ? 'rotate-180' : ''}`} />
+                          </>
+                        )}
+                      </button>
+
+                      {hasItems && showInterventionsDropdown && (
+                        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
+                          {/* Nueva intervención */}
+                          <button
+                            onClick={() => {
+                              onSelectIntervention(-1);
+                              setShowInterventionsDropdown(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2
+                              text-slate-200 hover:bg-slate-700`}
+                          >
+                            <Icon className="w-3.5 h-3.5 text-rose-400" />
+                            Nueva intervención
+                          </button>
+                          {/* Divider + list */}
+                          <div className="border-t border-slate-700 mx-3 my-1" />
+                          <p className="px-4 py-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Guardadas</p>
+                          <div className="max-h-60 overflow-y-auto">
+                            {interventions.map((inv, index) => (
+                              <button
+                                key={index}
+                                onClick={() => {
+                                  onSelectIntervention(index);
+                                  setShowInterventionsDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 text-sm transition-colors hover:bg-slate-700 flex items-center justify-between gap-2 group"
+                              >
+                                <span className="text-slate-200 font-medium truncate flex-1">{inv.formData.label}</span>
+                                <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  inv.formData.interventionType === 'TherapeuticIntervention' ? 'bg-violet-500/30 text-violet-300' :
+                                  inv.formData.interventionType === 'ScreeningIntervention'   ? 'bg-blue-500/30 text-blue-300' :
+                                                                                                'bg-teal-500/30 text-teal-300'
+                                }`}>
+                                  {inv.formData.interventionType === 'TherapeuticIntervention' ? 'Ter.' :
+                                   inv.formData.interventionType === 'ScreeningIntervention'   ? 'Crib.' : 'Diag.'}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // ── Generic items (e.g. Inicio) ──────────────────────────────
                 return (
-                  <div key={item.id} className="relative" ref={item.hasDropdown ? dropdownRef : null}>
+                  <div key={item.id} className="relative">
                     <button
-                      onClick={item.hasDropdown ? (e) => { e.stopPropagation(); setShowDiseaseDropdown(!showDiseaseDropdown); } : () => handleNavClick(item.id)}
+                      onClick={() => handleNavClick(item.id)}
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium text-sm transition-all
                         ${isActive
                           ? 'bg-slate-800 text-white border border-slate-400'
@@ -161,23 +382,7 @@ function Navbar({ currentPage, onNavigate, diseaseName = null, onLogout }) {
                     >
                       <Icon className="w-4 h-4" />
                       <span>{item.label}</span>
-                      {item.hasDropdown && <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${showDiseaseDropdown ? 'rotate-180' : ''}`} />}
                     </button>
-
-                    {item.hasDropdown && showDiseaseDropdown && (
-                      <div className="absolute top-full left-0 mt-2 w-48 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50">
-                        {diseaseDropdownOptions.map((option) => (
-                          <button
-                            key={option.id}
-                            onClick={() => { if (option.clickable) { handleNavClick('disease'); setShowDiseaseDropdown(false); } }}
-                            className={`w-full text-left px-4 py-3 text-sm font-medium transition-colors
-                              ${option.clickable ? 'text-slate-200 hover:bg-slate-700' : 'text-slate-600 cursor-not-allowed'}`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })}
