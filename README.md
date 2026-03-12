@@ -75,7 +75,3 @@ La documentación completa está disponible en la [Wiki](../../wiki):
 - [Configuración del entorno de desarrollo](../../wiki/Configuracion)
 
 ---
-
-## Licencia
-
-Este proyecto fue desarrollado como Trabajo de Fin de Grado en la Universidad de La Laguna.
