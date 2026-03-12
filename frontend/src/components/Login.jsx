@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Activity, User, Mail, Lock, ArrowRight } from 'lucide-react';
 
 const Hero = ({ type, active, title, text, buttonText, onButtonClick }) => {
@@ -61,19 +61,18 @@ export const Login = ({ onLogin }) => {
   });
 
   const isSignup = view === 'signup';
-  const toggleView = () => {
-    setView(isSignup ? 'signin' : 'signup');
+
+  const toggleView = useCallback(() => {
+    setView(prev => prev === 'signup' ? 'signin' : 'signup');
     setFormData({ username: '', email: '', password: '' });
-  };
+  }, []);
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback((e) => {
     e.preventDefault();
 
     if (isSignup) {
@@ -91,7 +90,7 @@ export const Login = ({ onLogin }) => {
       }));
       onLogin({ username: formData.username || formData.email, email: formData.email });
     }
-  };
+  }, [isSignup, formData, onLogin]);
 
   return (
     <div className="min-h-screen bg-slate-200 flex flex-col items-center justify-center p-6 font-sans">
@@ -227,7 +226,7 @@ export const Login = ({ onLogin }) => {
 
       {/* Footer Info */}
       <p className="mt-8 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em]">
-        Create Disease Model System v1.0
+        Creación de modelos de enfermedades v1.0
       </p>
     </div>
   );

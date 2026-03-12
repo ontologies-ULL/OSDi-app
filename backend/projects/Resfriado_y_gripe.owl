@@ -3950,80 +3950,181 @@ Examples:
   <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isAssessedIntervention>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Diabetes Real">
-  <rdf:type rdf:resource="#Disease"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Diabetes Real</rdfs:label>
+<owl:NamedIndividual rdf:about="#Enfermedad de prueba_Prevalence">
+  <rdf:type rdf:resource="#Parameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Enfermedad de prueba_Prevalence</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Prevalence for Enfermedad de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.01</hasExpectedValue>
+  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Age">
+<owl:NamedIndividual rdf:about="#Enfermedad de prueba_Incidence">
+  <rdf:type rdf:resource="#Parameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Enfermedad de prueba_Incidence</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Incidence for Enfermedad de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.02</hasExpectedValue>
+  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Enfermedad de prueba_Mortality">
+  <rdf:type rdf:resource="#Parameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Enfermedad de prueba_Mortality</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Mortality for Enfermedad de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.032</hasExpectedValue>
+  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Enfermedad de prueba">
+  <rdf:type rdf:resource="#Disease"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Enfermedad de prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción de la enfermedad de prueba</rdfs:comment>
+  <hasRefToDO rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToDO>
+  <hasRefToICD rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToICD>
+  <hasRefToOMIM rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToOMIM>
+  <hasRefToSNOMED rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToSNOMED>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Población de prueba_Age">
   <rdf:type rdf:resource="#Parameter"/>
   <rdf:type rdf:resource="#DeterministicParameter"/>
   <isValueOfAttribute rdf:resource="#Attribute_Age"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Age</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Age of the Poblacion con diabetes population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">50.1</hasExpectedValue>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Población de prueba_Age</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Age of the Población de prueba population</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">34</hasExpectedValue>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_FemaleProportion">
+<owl:NamedIndividual rdf:about="#Población de prueba_LifeExpectancy">
   <rdf:type rdf:resource="#Parameter"/>
   <rdf:type rdf:resource="#DeterministicParameter"/>
-  <isValueOfAttribute rdf:resource="#Attribute_Sex"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_FemaleProportion</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Female proportion in Poblacion con diabetes population</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.43</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_LifeExpectancy">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_LifeExpectancy</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Life expectancy for Poblacion con diabetes population</rdfs:comment>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Población de prueba_LifeExpectancy</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Life expectancy for Población de prueba population</rdfs:comment>
   <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">80.5</hasExpectedValue>
-</owl:NamedIndividual>
-
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Prevalence">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Prevalence</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Prevalence for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">4.2e-06</hasExpectedValue>
   <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Incidence">
-  <rdf:type rdf:resource="#Parameter"/>
-  <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Incidence</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Incidence for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.0028</hasExpectedValue>
+<owl:NamedIndividual rdf:about="#Attribute_Atributo_personalizado">
+  <rdf:type rdf:resource="#Attribute"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Attribute_Atributo_personalizado</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción del atributo personalizado</rdfs:comment>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción del atributo personalizado</hasDescription>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes_Mortality">
+<owl:NamedIndividual rdf:about="#Población de prueba_Atributo_personalizado_Parameter">
   <rdf:type rdf:resource="#Parameter"/>
   <rdf:type rdf:resource="#DeterministicParameter"/>
-  <rdf:type rdf:resource="#EpidemiologicalParameter"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes_Mortality</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Mortality for Poblacion con diabetes</rdfs:comment>
-  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.025</hasExpectedValue>
+  <isValueOfAttribute rdf:resource="#Attribute_Atributo_personalizado"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Población de prueba_Atributo_personalizado_Parameter</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Atributo personalizado parameter for Población de prueba population</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">-1.88</hasExpectedValue>
   <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Poblacion con diabetes">
+<owl:NamedIndividual rdf:about="#Población de prueba">
   <rdf:type rdf:resource="#Population"/>
-  <hasAge rdf:resource="#Poblacion con diabetes_Age"/>
-  <hasSex rdf:resource="#Poblacion con diabetes_FemaleProportion"/>
-  <hasLifeExpectancy rdf:resource="#Poblacion con diabetes_LifeExpectancy"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Prevalence"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Incidence"/>
-  <hasEpidemiologicalParameter rdf:resource="#Poblacion con diabetes_Mortality"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Poblacion con diabetes</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">descripcion de prueba</rdfs:comment>
-  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">descripcion de prueba</hasDescription>
+  <hasAge rdf:resource="#Población de prueba_Age"/>
+  <hasLifeExpectancy rdf:resource="#Población de prueba_LifeExpectancy"/>
+  <hasEpidemiologicalParameter rdf:resource="#Enfermedad de prueba_Prevalence"/>
+  <hasEpidemiologicalParameter rdf:resource="#Enfermedad de prueba_Incidence"/>
+  <hasEpidemiologicalParameter rdf:resource="#Enfermedad de prueba_Mortality"/>
+  <usesAttributeValue rdf:resource="#Población de prueba_Atributo_personalizado_Parameter"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Población de prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción de la población de prueba</rdfs:comment>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción de la población de prueba</hasDescription>
   <hasGeographicalContext rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Spain @https://www.wikidata.org/wiki/q29</hasGeographicalContext>
   <hasMinAge rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">0</hasMinAge>
-  <hasSize rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">41234123</hasSize>
+  <hasMaxAge rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">66</hasMaxAge>
+  <hasSize rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">99998</hasSize>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Coste_hospitalización">
+  <rdf:type rdf:resource="#Cost"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#Currency_Euro"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Coste_hospitalización</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Coste hospitalización of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">123123123.98</hasExpectedValue>
+  <appliesOneTime rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</appliesOneTime>
+  <hasYear rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2026</hasYear>
+  <hasSource rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Fuente de prueba</hasSource>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Coste_medicamento_Distribution">
+  <rdf:type rdf:resource="#NormalDistributionExpression"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Coste_medicamento_Distribution</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Normal distribution for Intervención de prueba_Coste_medicamento</rdfs:comment>
+  <hasAverageParameter rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">123</hasAverageParameter>
+  <hasStandardDeviationParameter rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">11</hasStandardDeviationParameter>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Coste_medicamento">
+  <rdf:type rdf:resource="#Cost"/>
+  <rdf:type rdf:resource="#SecondOrderUncertaintyParameter"/>
+  <hasDataItemType rdf:resource="#Currency_Euro"/>
+  <hasUncertaintyCharacterization rdf:resource="#Intervención de prueba_Coste_medicamento_Distribution"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Coste_medicamento</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Coste medicamento of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">123</hasExpectedValue>
+  <appliesOneTime rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</appliesOneTime>
+  <hasYear rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">2026</hasYear>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Utilidad_de_prueba">
+  <rdf:type rdf:resource="#Utility"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#DI_Generic_Utility"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Utilidad_de_prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Utilidad de prueba of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.848</hasExpectedValue>
+  <appliesOneTime rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</appliesOneTime>
+  <isDisutility rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isDisutility>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Effect">
+  <rdf:type rdf:resource="#ModifierParameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#DI_Probability"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Effect</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Reducción de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#integer">0</hasExpectedValue>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Reducción de prueba</hasDescription>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Sesibilidad_de_prueba">
+  <rdf:type rdf:resource="#Parameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#DI_Sensitivity"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Sesibilidad_de_prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Sesibilidad de prueba of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.9398</hasExpectedValue>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Especificidad_de_prueba">
+  <rdf:type rdf:resource="#Parameter"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#DI_Specificity"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Especificidad_de_prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Especificidad de prueba of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.9897</hasExpectedValue>
+</owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba">
+  <rdf:type rdf:resource="#TherapeuticIntervention"/>
+  <hasCost rdf:resource="#Intervención de prueba_Coste_hospitalización"/>
+  <hasCost rdf:resource="#Intervención de prueba_Coste_medicamento"/>
+  <hasUtility rdf:resource="#Intervención de prueba_Utilidad_de_prueba"/>
+  <involvesModification rdf:resource="#Intervención de prueba_Effect"/>
+  <hasSensitivity rdf:resource="#Intervención de prueba_Sesibilidad_de_prueba"/>
+  <hasSpecificity rdf:resource="#Intervención de prueba_Especificidad_de_prueba"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción de la intervención de prueba</rdfs:comment>
+  <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</isAssessedIntervention>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Descripción de la intervención de prueba</hasDescription>
 </owl:NamedIndividual>
 
 <rdf:Description>

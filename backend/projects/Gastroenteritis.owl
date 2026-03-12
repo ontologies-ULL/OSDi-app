@@ -220,24 +220,6 @@
   <rdfs:label xml:lang="es">tiene el parámetro</rdfs:label>
 </owl:ObjectProperty>
 
-<owl:ObjectProperty rdf:about="#isParameterOf">
-  <rdfs:domain rdf:resource="#Parameter"/>
-  <rdfs:range>
-    <owl:Class>
-      <owl:unionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#Disease"/>
-        <rdf:Description rdf:about="#DiseaseProgression"/>
-        <rdf:Description rdf:about="#Intervention"/>
-        <rdf:Description rdf:about="#Pathway"/>
-        <rdf:Description rdf:about="#Population"/>
-        <rdf:Description rdf:about="#ResourceUsageItem"/>
-      </owl:unionOf>
-    </owl:Class>
-  </rdfs:range>
-  <rdfs:label xml:lang="es">es parámetro de</rdfs:label>
-  <rdfs:label xml:lang="en">is parameter of</rdfs:label>
-</owl:ObjectProperty>
-
 <owl:ObjectProperty rdf:about="#hasDataItemType">
   <owl:inverseOf rdf:resource="#isDataItemTypeOf"/>
   <rdfs:domain rdf:resource="#Parameter"/>
@@ -334,10 +316,6 @@
   </rdfs:range>
   <rdfs:label xml:lang="en">has strategy</rdfs:label>
   <rdfs:label xml:lang="es">tiene la estrategia</rdfs:label>
-</owl:ObjectProperty>
-
-<owl:ObjectProperty rdf:about="#isStrategyOf">
-  <rdfs:domain rdf:resource="#Strategy"/>
 </owl:ObjectProperty>
 
 <owl:ObjectProperty rdf:about="#hasDiseaseProgression">
@@ -645,6 +623,24 @@ By default = 1, for the Manifestations.</rdfs:comment>
   <rdfs:label xml:lang="es">tiene la edad de inicio</rdfs:label>
 </owl:ObjectProperty>
 
+<owl:ObjectProperty rdf:about="#isParameterOf">
+  <rdfs:domain rdf:resource="#Parameter"/>
+  <rdfs:range>
+    <owl:Class>
+      <owl:unionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Disease"/>
+        <rdf:Description rdf:about="#DiseaseProgression"/>
+        <rdf:Description rdf:about="#Intervention"/>
+        <rdf:Description rdf:about="#Pathway"/>
+        <rdf:Description rdf:about="#Population"/>
+        <rdf:Description rdf:about="#ResourceUsageItem"/>
+      </owl:unionOf>
+    </owl:Class>
+  </rdfs:range>
+  <rdfs:label xml:lang="es">es parámetro de</rdfs:label>
+  <rdfs:label xml:lang="en">is parameter of</rdfs:label>
+</owl:ObjectProperty>
+
 <owl:ObjectProperty rdf:about="#hasProbabilityOfDeath">
   <rdfs:subPropertyOf rdf:resource="#hasParameter"/>
   <rdfs:domain>
@@ -793,6 +789,10 @@ By default = 1, for the Manifestations.</rdfs:comment>
   <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">The Specificity of a test is the Probability that a healthy subject will have a negative test result. Specificity is the percentage of true negatives or the Probability that the test will be negative if the disease is not present. False positives are healthy subjects diagnosed as sick.</rdfs:comment>
   <rdfs:label xml:lang="en">has specificity</rdfs:label>
   <rdfs:label xml:lang="es">tiene la especificidad</rdfs:label>
+</owl:ObjectProperty>
+
+<owl:ObjectProperty rdf:about="#isStrategyOf">
+  <rdfs:domain rdf:resource="#Strategy"/>
 </owl:ObjectProperty>
 
 <owl:ObjectProperty rdf:about="#hasSubpopulation">
@@ -1934,6 +1934,56 @@ Examples:
   <rdfs:label xml:lang="en">Population</rdfs:label>
 </owl:Class>
 
+<owl:Class rdf:about="#Guideline">
+  <rdfs:subClassOf rdf:resource="#ResourceUsageItem"/>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasGuideline"/>
+      <owl:someValuesFrom rdf:resource="#Guideline"/>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasConditionExpression"/>
+      <owl:allValuesFrom rdf:resource="#Parameter"/>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasDose"/>
+      <owl:onClass rdf:resource="#Parameter"/>
+      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasFrequency"/>
+      <owl:onClass rdf:resource="#Parameter"/>
+      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasRange"/>
+      <owl:onDataRange rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+      <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasHoursInterval"/>
+      <owl:onDataRange rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
+      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <owl:disjointWith rdf:resource="#ModelItemWithCost"/>
+  <owl:disjointWith rdf:resource="#ModelItemWithEffectInLifeExpectancy"/>
+  <owl:disjointWith rdf:resource="#ModelItemWithUtility"/>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">The way a treatment, drug, test... is applied. It defines a period of time (range), dose, frequency, etc.</rdfs:comment>
+  <rdfs:label xml:lang="en">Guideline</rdfs:label>
+  <rdfs:label xml:lang="es">Pauta</rdfs:label>
+</owl:Class>
+
 <owl:Class rdf:about="#Disease">
   <rdfs:subClassOf rdf:resource="#ModelItem"/>
   <rdfs:subClassOf>
@@ -2098,72 +2148,6 @@ Examples:
   <rdfs:label xml:lang="es">Enfermedad</rdfs:label>
 </owl:Class>
 
-<owl:Class rdf:about="#AttributeValueParameter">
-  <owl:equivalentClass>
-    <owl:Class>
-      <owl:intersectionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#Parameter"/>
-        <owl:Restriction>
-          <owl:onProperty rdf:resource="#isValueOfAttribute"/>
-          <owl:onClass rdf:resource="#Attribute"/>
-          <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-        </owl:Restriction>
-      </owl:intersectionOf>
-    </owl:Class>
-  </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#Parameter"/>
-</owl:Class>
-
-<owl:Class rdf:about="#Guideline">
-  <rdfs:subClassOf rdf:resource="#ResourceUsageItem"/>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasGuideline"/>
-      <owl:someValuesFrom rdf:resource="#Guideline"/>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasConditionExpression"/>
-      <owl:allValuesFrom rdf:resource="#Parameter"/>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasDose"/>
-      <owl:onClass rdf:resource="#Parameter"/>
-      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasFrequency"/>
-      <owl:onClass rdf:resource="#Parameter"/>
-      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasRange"/>
-      <owl:onDataRange rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
-      <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasHoursInterval"/>
-      <owl:onDataRange rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
-      <owl:maxQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:maxQualifiedCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <owl:disjointWith rdf:resource="#ModelItemWithCost"/>
-  <owl:disjointWith rdf:resource="#ModelItemWithEffectInLifeExpectancy"/>
-  <owl:disjointWith rdf:resource="#ModelItemWithUtility"/>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">The way a treatment, drug, test... is applied. It defines a period of time (range), dose, frequency, etc.</rdfs:comment>
-  <rdfs:label xml:lang="en">Guideline</rdfs:label>
-  <rdfs:label xml:lang="es">Pauta</rdfs:label>
-</owl:Class>
-
 <owl:Class rdf:about="#HealthTechnology">
   <rdfs:subClassOf rdf:resource="#ResourceUsageItem"/>
   <rdfs:subClassOf>
@@ -2285,10 +2269,6 @@ Examples:
   <rdfs:comment xml:lang="en">The cost of any component of the model (intervention, treatment, disease progression...)</rdfs:comment>
   <rdfs:label xml:lang="en">Cost</rdfs:label>
   <rdfs:label xml:lang="es">Coste</rdfs:label>
-</owl:Class>
-
-<owl:Class rdf:about="#ResourceUsageItem">
-  <rdfs:subClassOf rdf:resource="#ModelItem"/>
 </owl:Class>
 
 <owl:Class rdf:about="#DataItemType">
@@ -2636,6 +2616,10 @@ Examples:
   <rdfs:label xml:lang="en">Stage</rdfs:label>
 </owl:Class>
 
+<owl:Class rdf:about="#ResourceUsageItem">
+  <rdfs:subClassOf rdf:resource="#ModelItem"/>
+</owl:Class>
+
 <owl:Class rdf:about="#ScreeningIntervention">
   <rdfs:subClassOf rdf:resource="#DetectionIntervention"/>
   <rdfs:subClassOf>
@@ -2939,6 +2923,22 @@ Examples:
   <rdfs:label xml:lang="es">Modelo</rdfs:label>
 </owl:Class>
 
+<owl:Class rdf:about="#AttributeValueParameter">
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Parameter"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#isValueOfAttribute"/>
+          <owl:onClass rdf:resource="#Attribute"/>
+          <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <rdfs:subClassOf rdf:resource="#Parameter"/>
+</owl:Class>
+
 <owl:Class rdf:about="#Drug">
   <rdfs:subClassOf rdf:resource="#HealthTechnology"/>
   <rdfs:comment xml:lang="en">A natural or synthetic remedy for a disease or manifestation</rdfs:comment>
@@ -3199,42 +3199,82 @@ Examples:
   <rdfs:label xml:lang="es">Tipo del elemento de datos medible</rdfs:label>
 </owl:Class>
 
-<owl:Class rdf:about="#ParameterNature">
+<owl:Class rdf:about="#Manifestation">
   <owl:equivalentClass>
     <owl:Class>
       <owl:unionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#CalculatedParameter"/>
-        <rdf:Description rdf:about="#DeterministicParameter"/>
-        <rdf:Description rdf:about="#FirstOrderUncertaintyParameter"/>
-        <rdf:Description rdf:about="#SecondOrderUncertaintyParameter"/>
+        <rdf:Description rdf:about="#AcuteManifestation"/>
+        <rdf:Description rdf:about="#ChronicManifestation"/>
       </owl:unionOf>
     </owl:Class>
   </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#ModelItem"/>
+  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasDiseaseProgression"/>
+      <owl:maxCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:maxCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
   <owl:disjointUnionOf>
     <rdf:Description>
-      <rdf:first rdf:resource="#CalculatedParameter"/>
+      <rdf:first rdf:resource="#AcuteManifestation"/>
       <rdf:rest>
         <rdf:Description>
-          <rdf:first rdf:resource="#DeterministicParameter"/>
-          <rdf:rest>
-            <rdf:Description>
-              <rdf:first rdf:resource="#FirstOrderUncertaintyParameter"/>
-              <rdf:rest>
-                <rdf:Description>
-                  <rdf:first rdf:resource="#SecondOrderUncertaintyParameter"/>
-                  <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
-                </rdf:Description>
-              </rdf:rest>
-            </rdf:Description>
-          </rdf:rest>
+          <rdf:first rdf:resource="#ChronicManifestation"/>
+          <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
         </rdf:Description>
       </rdf:rest>
     </rdf:Description>
   </owl:disjointUnionOf>
-  <rdfs:comment xml:lang="en">The nature of the values of a parameter, i.e., whether it is a constant, calculated, or characterizes uncertainty somehow. This must be used to define parameters together with 'Parameter' or any of its subclasses, i.e. an individual defining the cost of a drug should be subclass of both 'Cost' and 'DeterministicParameter'</rdfs:comment>
-  <rdfs:label xml:lang="es">Naturaleza del parámetro</rdfs:label>
-  <rdfs:label xml:lang="en">Parameter nature</rdfs:label>
+  <rdfs:comment xml:lang="en">Symptoms or signs of a disease. They may be chronic or acute</rdfs:comment>
+  <rdfs:label xml:lang="es">Manifestación</rdfs:label>
+  <rdfs:label xml:lang="en">Manifestation</rdfs:label>
+</owl:Class>
+
+<owl:Class rdf:about="#DiseaseProgressionWithInitialProportion">
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#DiseaseProgression"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#hasInitialProportion"/>
+          <owl:someValuesFrom>
+            <owl:Class>
+              <owl:intersectionOf rdf:parseType="Collection">
+                <rdf:Description rdf:about="#Parameter"/>
+                <owl:Restriction>
+                  <owl:onProperty rdf:resource="#isParameterOf"/>
+                  <owl:someValuesFrom rdf:resource="#Population"/>
+                </owl:Restriction>
+              </owl:intersectionOf>
+            </owl:Class>
+          </owl:someValuesFrom>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
+</owl:Class>
+
+<owl:Class rdf:about="#AgentBasedModel">
+  <rdfs:subClassOf rdf:resource="#Model"/>
+  <rdfs:comment xml:lang="en">An model based on using multiple agents</rdfs:comment>
+  <rdfs:label xml:lang="en">Agent based model</rdfs:label>
+  <rdfs:label xml:lang="es">Modelo basado en agentes</rdfs:label>
+</owl:Class>
+
+<owl:Class rdf:about="#DiseaseProgressionSet">
+  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
+  <rdfs:subClassOf>
+    <owl:Restriction>
+      <owl:onProperty rdf:resource="#hasDiseaseProgression"/>
+      <owl:onClass rdf:resource="#DiseaseProgression"/>
+      <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
+    </owl:Restriction>
+  </rdfs:subClassOf>
+  <rdfs:comment xml:lang="en">A set of disease progressions</rdfs:comment>
+  <rdfs:label xml:lang="es">Conjunto de progresiones de enfermedad</rdfs:label>
+  <rdfs:label xml:lang="en">Disease progression set</rdfs:label>
 </owl:Class>
 
 <owl:Class rdf:about="#ModelItemDefiningDiseaseProgression">
@@ -3487,19 +3527,49 @@ Examples:
   <rdfs:label xml:lang="en">Model item with utility</rdfs:label>
 </owl:Class>
 
-<owl:Class rdf:about="#ModifierParameter">
+<owl:Class rdf:about="#ParameterNature">
   <owl:equivalentClass>
     <owl:Class>
-      <owl:intersectionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#Parameter"/>
-        <owl:Restriction>
-          <owl:onProperty rdf:resource="#modifies"/>
-          <owl:someValuesFrom rdf:resource="#Parameter"/>
-        </owl:Restriction>
-      </owl:intersectionOf>
+      <owl:unionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#CalculatedParameter"/>
+        <rdf:Description rdf:about="#DeterministicParameter"/>
+        <rdf:Description rdf:about="#FirstOrderUncertaintyParameter"/>
+        <rdf:Description rdf:about="#SecondOrderUncertaintyParameter"/>
+      </owl:unionOf>
     </owl:Class>
   </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#Parameter"/>
+  <rdfs:subClassOf rdf:resource="#ModelItem"/>
+  <owl:disjointUnionOf>
+    <rdf:Description>
+      <rdf:first rdf:resource="#CalculatedParameter"/>
+      <rdf:rest>
+        <rdf:Description>
+          <rdf:first rdf:resource="#DeterministicParameter"/>
+          <rdf:rest>
+            <rdf:Description>
+              <rdf:first rdf:resource="#FirstOrderUncertaintyParameter"/>
+              <rdf:rest>
+                <rdf:Description>
+                  <rdf:first rdf:resource="#SecondOrderUncertaintyParameter"/>
+                  <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
+                </rdf:Description>
+              </rdf:rest>
+            </rdf:Description>
+          </rdf:rest>
+        </rdf:Description>
+      </rdf:rest>
+    </rdf:Description>
+  </owl:disjointUnionOf>
+  <rdfs:comment xml:lang="en">The nature of the values of a parameter, i.e., whether it is a constant, calculated, or characterizes uncertainty somehow. This must be used to define parameters together with 'Parameter' or any of its subclasses, i.e. an individual defining the cost of a drug should be subclass of both 'Cost' and 'DeterministicParameter'</rdfs:comment>
+  <rdfs:label xml:lang="es">Naturaleza del parámetro</rdfs:label>
+  <rdfs:label xml:lang="en">Parameter nature</rdfs:label>
+</owl:Class>
+
+<owl:Class rdf:about="#CoexistentDiseaseProgressionSet">
+  <rdfs:subClassOf rdf:resource="#DiseaseProgressionSet"/>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">A set of disease progressions which can coexist at the same time, e.g. seizures and skin problems.</rdfs:comment>
+  <rdfs:label xml:lang="en">Coexistent disease progression set</rdfs:label>
+  <rdfs:label xml:lang="es">Conjunto de progresiones de enfermedad coexistentes</rdfs:label>
 </owl:Class>
 
 <owl:Class rdf:about="#YearDependantParameter">
@@ -3518,18 +3588,11 @@ Examples:
   <rdfs:subClassOf rdf:resource="#Parameter"/>
 </owl:Class>
 
-<owl:Class rdf:about="#DiseaseProgressionSet">
-  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasDiseaseProgression"/>
-      <owl:onClass rdf:resource="#DiseaseProgression"/>
-      <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:minQualifiedCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <rdfs:comment xml:lang="en">A set of disease progressions</rdfs:comment>
-  <rdfs:label xml:lang="es">Conjunto de progresiones de enfermedad</rdfs:label>
-  <rdfs:label xml:lang="en">Disease progression set</rdfs:label>
+<owl:Class rdf:about="#DecisionTreeModel">
+  <rdfs:subClassOf rdf:resource="#Model"/>
+  <rdfs:comment xml:lang="en">A model based on a decision tree</rdfs:comment>
+  <rdfs:label xml:lang="en">Decision tree model</rdfs:label>
+  <rdfs:label xml:lang="es">Modelo de árbol de decisión</rdfs:label>
 </owl:Class>
 
 <owl:Class rdf:about="#DiagnosisIntervention">
@@ -3538,84 +3601,6 @@ Examples:
   <rdfs:comment xml:lang="en">An intervention intended to establish the presence/absence of certain disease or condition</rdfs:comment>
   <rdfs:label xml:lang="en">Diagnosis intervention</rdfs:label>
   <rdfs:label xml:lang="es">Intervención diagnóstica</rdfs:label>
-</owl:Class>
-
-<owl:Class rdf:about="#Manifestation">
-  <owl:equivalentClass>
-    <owl:Class>
-      <owl:unionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#AcuteManifestation"/>
-        <rdf:Description rdf:about="#ChronicManifestation"/>
-      </owl:unionOf>
-    </owl:Class>
-  </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
-  <rdfs:subClassOf>
-    <owl:Restriction>
-      <owl:onProperty rdf:resource="#hasDiseaseProgression"/>
-      <owl:maxCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">0</owl:maxCardinality>
-    </owl:Restriction>
-  </rdfs:subClassOf>
-  <owl:disjointUnionOf>
-    <rdf:Description>
-      <rdf:first rdf:resource="#AcuteManifestation"/>
-      <rdf:rest>
-        <rdf:Description>
-          <rdf:first rdf:resource="#ChronicManifestation"/>
-          <rdf:rest rdf:resource="http://www.w3.org/1999/02/22-rdf-syntax-ns#nil"/>
-        </rdf:Description>
-      </rdf:rest>
-    </rdf:Description>
-  </owl:disjointUnionOf>
-  <rdfs:comment xml:lang="en">Symptoms or signs of a disease. They may be chronic or acute</rdfs:comment>
-  <rdfs:label xml:lang="es">Manifestación</rdfs:label>
-  <rdfs:label xml:lang="en">Manifestation</rdfs:label>
-</owl:Class>
-
-<owl:Class rdf:about="#DiseaseProgressionWithInitialProportion">
-  <owl:equivalentClass>
-    <owl:Class>
-      <owl:intersectionOf rdf:parseType="Collection">
-        <rdf:Description rdf:about="#DiseaseProgression"/>
-        <owl:Restriction>
-          <owl:onProperty rdf:resource="#hasInitialProportion"/>
-          <owl:someValuesFrom>
-            <owl:Class>
-              <owl:intersectionOf rdf:parseType="Collection">
-                <rdf:Description rdf:about="#Parameter"/>
-                <owl:Restriction>
-                  <owl:onProperty rdf:resource="#isParameterOf"/>
-                  <owl:someValuesFrom rdf:resource="#Population"/>
-                </owl:Restriction>
-              </owl:intersectionOf>
-            </owl:Class>
-          </owl:someValuesFrom>
-        </owl:Restriction>
-      </owl:intersectionOf>
-    </owl:Class>
-  </owl:equivalentClass>
-  <rdfs:subClassOf rdf:resource="#DiseaseProgression"/>
-</owl:Class>
-
-<owl:Class rdf:about="#AgentBasedModel">
-  <rdfs:subClassOf rdf:resource="#Model"/>
-  <rdfs:comment xml:lang="en">An model based on using multiple agents</rdfs:comment>
-  <rdfs:label xml:lang="en">Agent based model</rdfs:label>
-  <rdfs:label xml:lang="es">Modelo basado en agentes</rdfs:label>
-</owl:Class>
-
-<owl:Class rdf:about="#CoexistentDiseaseProgressionSet">
-  <rdfs:subClassOf rdf:resource="#DiseaseProgressionSet"/>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">A set of disease progressions which can coexist at the same time, e.g. seizures and skin problems.</rdfs:comment>
-  <rdfs:label xml:lang="en">Coexistent disease progression set</rdfs:label>
-  <rdfs:label xml:lang="es">Conjunto de progresiones de enfermedad coexistentes</rdfs:label>
-</owl:Class>
-
-<owl:Class rdf:about="#DecisionTreeModel">
-  <rdfs:subClassOf rdf:resource="#Model"/>
-  <rdfs:comment xml:lang="en">A model based on a decision tree</rdfs:comment>
-  <rdfs:label xml:lang="en">Decision tree model</rdfs:label>
-  <rdfs:label xml:lang="es">Modelo de árbol de decisión</rdfs:label>
 </owl:Class>
 
 <owl:Class rdf:about="#DiscreteEventSimulationModel">
@@ -3632,6 +3617,21 @@ Examples:
 
 <owl:Class rdf:about="#InheritedDisease">
   <rdfs:subClassOf rdf:resource="#Disease"/>
+</owl:Class>
+
+<owl:Class rdf:about="#ModifierParameter">
+  <owl:equivalentClass>
+    <owl:Class>
+      <owl:intersectionOf rdf:parseType="Collection">
+        <rdf:Description rdf:about="#Parameter"/>
+        <owl:Restriction>
+          <owl:onProperty rdf:resource="#modifies"/>
+          <owl:someValuesFrom rdf:resource="#Parameter"/>
+        </owl:Restriction>
+      </owl:intersectionOf>
+    </owl:Class>
+  </owl:equivalentClass>
+  <rdfs:subClassOf rdf:resource="#Parameter"/>
 </owl:Class>
 
 <owl:Class rdf:about="#MarkovModel">
@@ -3950,15 +3950,29 @@ Examples:
   <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isAssessedIntervention>
 </owl:NamedIndividual>
 
-<owl:NamedIndividual rdf:about="#Diabetes">
-  <rdf:type rdf:resource="#Disease"/>
-  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Diabetes</rdfs:label>
-  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Resumen para ver si sigue</rdfs:comment>
-  <hasRefToDO rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToDO>
-  <hasRefToICD rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToICD>
-  <hasRefToOMIM rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToOMIM>
-  <hasRefToSNOMED rdf:datatype="http://www.w3.org/2001/XMLSchema#string">12345</hasRefToSNOMED>
+<owl:NamedIndividual rdf:about="#Intervención de prueba_Utility1">
+  <rdf:type rdf:resource="#Utility"/>
+  <rdf:type rdf:resource="#DeterministicParameter"/>
+  <hasDataItemType rdf:resource="#DI_Generic_Utility"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba_Utility1</rdfs:label>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Utility 1 of Intervención de prueba</rdfs:comment>
+  <hasExpectedValue rdf:datatype="http://www.w3.org/2001/XMLSchema#decimal">0.002</hasExpectedValue>
+  <appliesOneTime rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</appliesOneTime>
+  <isDisutility rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">false</isDisutility>
 </owl:NamedIndividual>
+
+<owl:NamedIndividual rdf:about="#Intervención de prueba 2">
+  <rdf:type rdf:resource="#TherapeuticIntervention"/>
+  <rdfs:label rdf:datatype="http://www.w3.org/2001/XMLSchema#string">Intervención de prueba 2</rdfs:label>
+  <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</isAssessedIntervention>
+</owl:NamedIndividual>
+
+<TherapeuticIntervention rdf:about="#Intervención de prueba">
+  <hasUtility rdf:resource="#Intervención de prueba_Utility1"/>
+  <rdfs:comment rdf:datatype="http://www.w3.org/2001/XMLSchema#string">fasdf</rdfs:comment>
+  <isAssessedIntervention rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</isAssessedIntervention>
+  <hasDescription rdf:datatype="http://www.w3.org/2001/XMLSchema#string">fasdf</hasDescription>
+</TherapeuticIntervention>
 
 <rdf:Description>
   <opla:entityPositionX rdf:datatype="http://www.w3.org/2001/XMLSchema#double">100.61244444225647</opla:entityPositionX>
