@@ -86,16 +86,77 @@ Modelado de intervenciones incluyendo:
 
 # Cómo ejecutar el proyecto
 
-## Requisitos
+## Requisitos previos
 
-- **Node.js ≥ 18**
-- **Python ≥ 3.10**
+- **Node.js ≥ 18** — [Descargar](https://nodejs.org/)
+- **Python ≥ 3.10** — [Descargar](https://www.python.org/downloads/)
+- **pip** (incluido con Python)
 
 ---
 
-## Backend
+## Instalación de dependencias
+
+### Backend
+
+Las dependencias del backend son:
+
+| Paquete | Versión mínima | Descripción |
+|---------|---------------|-------------|
+| `fastapi` | ≥ 0.104.0 | Framework web para la API |
+| `uvicorn` | — | Servidor ASGI para ejecutar FastAPI |
+| `owlready2` | ≥ 0.45 | Manipulación de ontologías OWL |
+| `pydantic` | — | Validación de datos (instalado junto con FastAPI) |
+
+Para instalarlas:
 
 ```bash
-cd backend/api
-pip install -r requirements.txt
-uvicorn src.main:app --reload
+pip install fastapi uvicorn owlready2
+```
+
+> **Opcional — dependencias de testing:**
+> ```bash
+> pip install pytest pytest-cov httpx
+> ```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Esto instalará automáticamente todas las dependencias definidas en `package.json`, incluyendo React, Vite, TailwindCSS y React Router.
+
+---
+
+## Ejecución del proyecto
+
+### Backend
+
+```bash
+cd backend/api/src
+python ./main.py
+```
+
+El servidor arrancará en **http://localhost:8000**.
+La documentación interactiva de la API estará disponible en **http://localhost:8000/docs**.
+
+### Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+La aplicación estará disponible en **http://localhost:5173**.
+
+> Asegúrate de tener el backend corriendo antes de usar el frontend, ya que la aplicación se conecta a `http://localhost:8000`.
+
+---
+
+## Tests
+
+```bash
+cd backend
+python -m pytest test_main.py -v
+```
