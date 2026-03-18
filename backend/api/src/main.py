@@ -15,73 +15,96 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# ========== Middleware for CORS access ==========
 app.add_middleware(
     CORSMiddleware,
+    # Ports available for frontend development
     allow_origins=[
-        "http://localhost:5173",  # Vite default
-        "http://localhost:3000",  # React default alternativo
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000"
+        "http://localhost:5173",    # Vite default
+        "http://localhost:3000",    # Create React App default
+        "http://127.0.0.1:5173",    # Vite with explicit IP
+        "http://127.0.0.1:3000"     # Create React App with explicit IP
     ],
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Permite todos los headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-# ========================================================
 
-# Variable global para almacenar la ontología cargada
+# Global variable to hold the currently loaded ontology
 current_ontology = None
 ontology_file_path = None
 
-# ============ PYDANTIC MODELS ============
-
 class ExportFormat(str, Enum):
+    """
+    @brief Supported export formats for the ontology file.
+    @param owl Exports in OWL/RDF/XML format (default).
+    @param ntriples Exports in N-Triples format.
+    @param turtle Exports in Turtle format.
+    """
     owl = "owl"
     ntriples = "ntriples"
     turtle = "turtle"
 
-
 class DatatypeProperty(BaseModel):
-    property: str  # URI or property name
+    """
+    @brief Represents a datatype property assignment for an ontology individual.
+    @param property URI or local name of the datatype property.
+    @param value Literal value to assign (string, number, boolean, etc.).
+    """
+    property: str
     value: Any
 
-
 class ObjectProperty(BaseModel):
-    property: str  # URI or property name
-    value: str  # URI of the related individual
-
+    """
+    @brief Represents an object property assignment linking two ontology individuals.
+    @param property URI or local name of the object property.
+    @param value URI or local name of the target individual.
+    """
+    property: str
+    value: str
 
 class IndividualCreate(BaseModel):
+    """
+    @brief Payload for creating a new individual in the ontology.
+    @param label Local name of the individual. Used to build its IRI as {base_iri}#{label}.
+    @param comment Optional human-readable description (maps to rdfs:comment).
+    @param selectedClasses List of class IRIs or local names the individual belongs to.
+    @param datatypeProperties Literal property-value pairs to assign to the individual.
+    @param objectProperties Object property assignments linking this individual to others.
+    """
     label: str
     comment: Optional[str] = None
     selectedClasses: List[str] = []
     datatypeProperties: List[DatatypeProperty] = []
     objectProperties: List[ObjectProperty] = []
 
-
 class IndividualUpdate(BaseModel):
+    """
+    @brief Payload for partially updating an existing individual in the ontology.
+    Only provided fields are updated. Collection fields (selectedClasses,
+    datatypeProperties, objectProperties) fully replace existing values when provided.
+    @param label New local name for the individual. Triggers an IRI rename.
+    @param comment New human-readable description. Pass empty string to remove it.
+    @param selectedClasses New set of classes, replacing all existing class assignments.
+    @param datatypeProperties New set of datatype properties, replacing all existing ones.
+    @param objectProperties New set of object properties, replacing all existing ones.
+    """
     label: Optional[str] = None
     comment: Optional[str] = None
-    selectedClasses: Optional[List[str]] = None  # If provided, replaces the classes
-    datatypeProperties: Optional[List[DatatypeProperty]] = None  # If provided, replaces the properties
-    objectProperties: Optional[List[ObjectProperty]] = None  # If provided, replaces the properties
+    selectedClasses: Optional[List[str]] = None
+    datatypeProperties: Optional[List[DatatypeProperty]] = None
+    objectProperties: Optional[List[ObjectProperty]] = None
 
-
-# Añade esto cerca del inicio del archivo, después de las importaciones
+# Resolve the projects directory relative to this file's location
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROJECTS_DIR = os.path.join(BASE_DIR, "..", "projects")
 PROJECTS_DIR = os.path.abspath(PROJECTS_DIR)
 
-# Asegúrate de que la carpeta projects existe
+# Ensure the projects folder exists
 os.makedirs(PROJECTS_DIR, exist_ok=True)
-
-
-# ============ ENDPOINTS ============
 
 @app.get("/")
 def root():
-    """Root endpoint with API information"""
+    """@brief Returns a summary of the API and the list of available endpoints."""
     return {
         "message": "Ontology Management API",
         "version": "1.0.0",
@@ -100,22 +123,21 @@ def root():
         }
     }
 
-
 @app.post("/ontology/load")
 async def load_ontology(file: UploadFile = File(...)):
     """
-    Load an ontology from an OWL/RDF file
-    
-    Args:
-        file: Ontology file (.owl, .rdf, .ttl)
-    
-    Returns:
-        Information about the loaded ontology
+    @brief Loads an ontology from an uploaded OWL/RDF file into memory.
+    The file is saved to a temporary path and kept loaded until cleared or replaced.
+    Validates that the file has a supported extension and a valid OWL structure.
+    @param file Ontology file. Supported formats: .owl, .rdf, .ttl, .xml, .n3, .nt
+    @return Base IRI of the loaded ontology and basic statistics (classes, individuals, properties).
+    @throws HTTPException 400 if the file extension is not supported.
+    @throws HTTPException 500 if the ontology cannot be parsed or has an invalid structure.
     """
     global current_ontology, ontology_file_path
     
     try:
-        # Validar extensión del archivo
+        # Validate file extension
         allowed_extensions = ['.owl', '.rdf', '.ttl', '.xml', '.n3', '.nt']
         file_ext = os.path.splitext(file.filename)[1].lower()
         
@@ -131,13 +153,10 @@ async def load_ontology(file: UploadFile = File(...)):
         # Load ontology
         current_ontology = get_ontology(f"file://{ontology_file_path}").load()
         
-        # VALIDACIÓN ADICIONAL: Verificar que la ontología tiene contenido válido
-        # Una ontología válida debe tener al menos un namespace RDF/OWL
+        # Ensure the ontology has valid content
         if not current_ontology.base_iri:
             raise ValueError("Invalid ontology: No base IRI found")
         
-        # Verificar que tiene estructura básica de ontología
-        # (al menos debe poder listar clases, aunque esté vacía)
         try:
             classes = list(current_ontology.classes())
             individuals = list(current_ontology.individuals())
@@ -145,7 +164,6 @@ async def load_ontology(file: UploadFile = File(...)):
         except Exception as e:
             raise ValueError(f"Invalid ontology structure: {str(e)}")
         
-        # Gather basic information
         return {
             "success": True,
             "message": "Ontology loaded successfully",
@@ -161,7 +179,7 @@ async def load_ontology(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        # Limpiar el archivo temporal si hubo error
+        # Clean up the temporary file if an error occurred
         if ontology_file_path and os.path.exists(ontology_file_path):
             try:
                 os.unlink(ontology_file_path)
@@ -175,15 +193,14 @@ def export_ontology(
     filename: str = Query("ontology_export", description="File name (without extension)")
 ):
     """
-    Export the loaded ontology as a downloadable file
-    (For use from web browser - user chooses where to save)
-    
-    Args:
-        format: Export format (owl, ntriples, turtle)
-        filename: Base file name (extension is added automatically)
-    
-    Returns:
-        Ontology file for download
+    @brief Exports the in-memory ontology as a downloadable file.
+    Intended for browser use — the user selects where to save the file.
+    Writes all current in-memory changes to a temporary file before serving it.
+    @param format Export format. Supported values: owl (RDF/XML), turtle.
+    @param filename Base name for the downloaded file (extension is appended automatically).
+    @return The ontology file as a binary download response.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the export fails or the resulting file is empty.
     """
     global current_ontology
     
@@ -207,7 +224,7 @@ def export_ontology(
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext, mode='w') as tmp:
             export_path = tmp.name
         
-        # IMPORTANT: Map the correct format for owlready2
+        # Map the correct format for owlready2
         owlready_format = "rdfxml" if format.value == "owl" else format.value
         
         # Export ontology with all in-memory changes
@@ -242,22 +259,21 @@ def export_ontology(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exporting ontology: {str(e)}")
 
-
 @app.post("/ontology/save")
 def save_ontology_local(
     format: ExportFormat = Query(ExportFormat.owl, description="Export format"),
     filename: str = Query(None, description="File name (without extension). If not provided, generates timestamp-based name")
 ):
     """
-    Save the current ontology to the projects folder on the server
-    
-    Args:
-        format: Export format (owl, turtle)
-        filename: Base file name (extension is added automatically). 
-                  If None, generates name with timestamp
-    
-    Returns:
-        JSON with file path and status
+    @brief Persists the current in-memory ontology to the server's projects folder.
+    Used to save work in progress without triggering a browser download.
+    If no filename is given, an automatic name is generated using the current timestamp.
+    @param format Export format. Supported values: owl (RDF/XML), turtle.
+    @param filename Base name for the saved file (extension appended automatically).
+                   If omitted, a timestamp-based name is generated (e.g. disease_ontology_20260318_120000).
+    @return JSON with the saved file path, filename, size in bytes, and format used.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if saving fails or the resulting file is empty.
     """
     global current_ontology
     
@@ -273,7 +289,6 @@ def save_ontology_local(
             "owl": ".owl",
             "turtle": ".ttl"
         }
-        
         ext = format_extensions.get(format.value, ".owl")
         
         # Generate filename if not provided
@@ -314,22 +329,20 @@ def save_ontology_local(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving ontology: {str(e)}")
 
-
 @app.post("/ontology/export-to-path")
 def export_ontology_to_path(
     output_path: str = Query(..., description="Full path where to save (for desktop apps only)"),
     format: ExportFormat = Query(ExportFormat.owl, description="Export format")
 ):
     """
-    Export the ontology to a specific server path
-    (Only works if the backend has access to the file system)
-    
-    Args:
-        output_path: Full path where to save the file
-        format: Export format (owl, ntriples, turtle)
-    
-    Returns:
-        Export confirmation with the file path
+    @brief Exports the ontology to a specific path on the server's file system.
+    Only works when the backend has direct access to the target directory.
+    If no extension is included in the path, it is appended based on the format.
+    @param output_path Full absolute path where the file will be saved.
+    @param format Export format. Supported values: owl (RDF/XML), turtle.
+    @return JSON with the output path, format used, and file size in bytes.
+    @throws HTTPException 400 if no ontology is loaded or the target directory does not exist.
+    @throws HTTPException 500 if the export fails or the resulting file is empty.
     """
     global current_ontology
     
@@ -357,7 +370,7 @@ def export_ontology_to_path(
             ext = format_extensions.get(format.value, ".owl")
             output_path = f"{output_path}{ext}"
         
-        # IMPORTANT: Map the correct format for owlready2
+        # Map the correct format for owlready2
         owlready_format = "rdfxml" if format.value == "owl" else format.value
         
         # Export ontology with all in-memory changes
@@ -373,7 +386,7 @@ def export_ontology_to_path(
         
         return {
             "success": True,
-            "message": "Ontología exportada exitosamente",
+            "message": "Ontology exported successfully",
             "output_path": output_path,
             "format": format.value,
             "file_size_bytes": file_size
@@ -384,38 +397,18 @@ def export_ontology_to_path(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error exporting ontology: {str(e)}")
 
-
-
-
-
-
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-""" REVISAR NAMES INDIVIDUOS """
-
-
-
-
-
 @app.post("/ontology/individual")
 def create_individual(individual_data: IndividualCreate = Body(...)):
     """
-    Create a new individual in the ontology
-    
-    Args:
-        individual_data: Data of the individual to create
-            - label: Name of the individual
-            - comment: Optional comment
-            - selectedClasses: List of URIs of classes to which it belongs
-            - datatypeProperties: Properties with literal values
-            - objectProperties: Properties with relationships to other individuals
-    
-    Returns:
-        Confirm the creation with details of the individual
+    @brief Creates a new named individual in the loaded ontology.
+    The individual's IRI is built as {base_iri}#{label}. If no classes are provided,
+    the individual is created as an instance of owl:Thing.
+    Changes are automatically persisted to the loaded .owl file after creation.
+    @param individual_data IndividualCreate payload with label, optional comment, classes, datatype properties, and object properties.
+    @return JSON with the IRI, label, classes, and count of properties assigned.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 404 if any of the specified classes is not found in the ontology.
+    @throws HTTPException 500 if creation fails for any other reason.
     """
     global current_ontology, ontology_file_path
     
@@ -427,8 +420,7 @@ def create_individual(individual_data: IndividualCreate = Body(...)):
     
     try:
         with current_ontology:
-            # Create the individual's IRI based on the label
-            # Handle if the base_iri ends with # or /
+            # Create the individual's IRI based on the label and the ontology's base IRI
             base_iri = str(current_ontology.base_iri)
             if base_iri.endswith("#"):
                 individual_iri = f"{base_iri}{individual_data.label}"
@@ -503,7 +495,6 @@ def create_individual(individual_data: IndividualCreate = Body(...)):
                         if str(p.iri) == op.property or p.name == op.property:
                             prop = p
                             break
-                    
                     if prop:
                         # Search for the related individual
                         target_individual = None
@@ -511,7 +502,6 @@ def create_individual(individual_data: IndividualCreate = Body(...)):
                             if str(ind.iri) == op.value or ind.name == op.value:
                                 target_individual = ind
                                 break
-                        
                         if target_individual:
                             current_value = getattr(individual, prop.name, None)
                             if current_value is None or current_value == []:
@@ -523,7 +513,7 @@ def create_individual(individual_data: IndividualCreate = Body(...)):
                 except Exception as e:
                     print(f"Warning: Could not add object property {op.property}: {e}")
         
-        # AUTOMATICALLY SAVE to the loaded ontology file
+        # Save to the loaded ontology file
         if ontology_file_path:
             current_ontology.save(file=ontology_file_path, format="rdfxml")
         
@@ -547,23 +537,21 @@ def create_individual(individual_data: IndividualCreate = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating individual: {str(e)}")
 
-
 @app.put("/ontology/individual/{individual_iri:path}")
 def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(...)):
     """
-    Updates an existing individual in the ontology
-    
-    Args:
-        individual_iri: Full IRI of the individual (may include # or /)
-        update_data: Data to update (only provided fields are updated)
-            - label: New name of the individual (also changes the IRI/name)
-            - comment: New comment
-            - selectedClasses: New classes (replaces existing ones)
-            - datatypeProperties: New datatype properties (replaces existing ones)
-            - objectProperties: New object properties (replaces existing ones)
-    
-    Returns:
-        Update confirmation with individual details
+    @brief Updates an existing individual in the loaded ontology.
+    Only the fields included in the payload are modified. If label changes,
+    the individual is destroyed and recreated under the new IRI, preserving all
+    existing properties not explicitly overridden, and updating all references
+    from other individuals automatically.
+    Changes are automatically persisted to the loaded .owl file after the update.
+    @param individual_iri Full IRI or local name of the individual to update.
+    @param update_data IndividualUpdate payload with the fields to modify.
+    @return JSON with the updated IRI, name, label, comment, and assigned classes.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 404 if the individual is not found in the ontology.
+    @throws HTTPException 500 if the update fails for any other reason.
     """
     global current_ontology, ontology_file_path
     
@@ -590,6 +578,7 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
         with current_ontology:
             # If the label is changed, we need to recreate the individual with a new IRI
             if update_data.label is not None and update_data.label != individual.name:
+
                 # Save all current individual information
                 old_classes = [cls for cls in individual.is_a if isinstance(cls, ThingClass)]
                 old_comment = individual.comment[0] if individual.comment else None
@@ -645,14 +634,14 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
                 # Restore label
                 new_individual.label = [update_data.label]
                 
-                # Restore comment (use updated if provided, else old)
+                # Restore comment
                 if update_data.comment is not None:
                     if update_data.comment != "":
                         new_individual.comment = [update_data.comment]
                 elif old_comment:
                     new_individual.comment = [old_comment]
                 
-                # Restore data properties (use updated if provided, else old)
+                # Restore data properties
                 if update_data.datatypeProperties is not None:
                     for dp in update_data.datatypeProperties:
                         prop = None
@@ -710,8 +699,7 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
                 individual = new_individual
                 
             else:
-                # Label/name is not changed, just update properties normally
-                # Update label if provided (but it is the same)
+                # Update label if provided
                 if update_data.label is not None:
                     individual.label = [update_data.label]
                 
@@ -724,10 +712,8 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
                 
                 # Update classes if provided
                 if update_data.selectedClasses is not None:
-                    # Clear current classes (except owl:NamedIndividual and owl:Thing)
                     individual.is_a = [cls for cls in individual.is_a if not isinstance(cls, ThingClass)]
                     
-                    # Add new classes
                     for class_iri in update_data.selectedClasses:
                         found_class = None
                         for cls in current_ontology.classes():
@@ -793,13 +779,13 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
                                 else:
                                     setattr(individual, prop.name, [target_individual])
         
-        # AUTOMATICALLY SAVE to the loaded ontology file
+        # Save to the loaded ontology file
         if ontology_file_path:
             current_ontology.save(file=ontology_file_path, format="rdfxml")
         
         return {
             "success": True,
-            "message": "Individuo actualizado correctamente",
+            "message": "Individual updated successfully",
             "individual": {
                 "iri": str(individual.iri),
                 "name": individual.name,
@@ -812,16 +798,17 @@ def update_individual(individual_iri: str, update_data: IndividualUpdate = Body(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al actualizar individuo: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Error updating individual: {str(e)}")
 
 @app.get("/ontology/classes")
 def get_classes():
     """
-    Obtains detailed information about all classes in the ontology
-    
-    Returns:
-        List of classes with all their information
+    @brief Returns detailed information about all classes defined in the loaded ontology.
+    For each class, includes its IRI, label, comment, superclasses, subclasses,
+    and up to 10 of its direct instances.
+    @return JSON with total class count and a list of class descriptors.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the query fails.
     """
     global current_ontology
     
@@ -835,7 +822,7 @@ def get_classes():
         classes_info = []
         
         for cls in current_ontology.classes():
-            # Get superclasses (excluding owl:Thing)
+            # Get superclasses
             superclasses = [str(sc.iri) for sc in cls.is_a if isinstance(sc, ThingClass) and sc.name != "Thing"]
             
             # Get subclasses
@@ -852,7 +839,7 @@ def get_classes():
                 "superclasses": superclasses,
                 "subclasses": subclasses,
                 "individuals_count": len(individuals),
-                "individuals": individuals[:10]  # First 10 to avoid overload
+                "individuals": individuals[:10] # First 10 individuals for preview
             })
         
         return {
@@ -864,14 +851,15 @@ def get_classes():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting classes: {str(e)}")
 
-
 @app.get("/ontology/individuals")
 def get_individuals():
     """
-    Obtains detailed information about all individuals in the ontology
-    
-    Returns:
-        List of individuals with all their information
+    @brief Returns detailed information about all individuals in the loaded ontology.
+    For each individual, includes its IRI, label, comment, assigned classes,
+    all datatype property values, and all object property relationships.
+    @return JSON with total individual count and a list of individual descriptors.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the query fails.
     """
     global current_ontology
     
@@ -883,7 +871,6 @@ def get_individuals():
     
     try:
         individuals_info = []
-        
         for ind in current_ontology.individuals():
             # Get classes of the individual
             classes = [str(cls.iri) for cls in ind.is_a if isinstance(cls, ThingClass)]
@@ -928,35 +915,36 @@ def get_individuals():
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener individuos: {str(e)}")
-
+        raise HTTPException(status_code=500, detail=f"Error getting individuals: {str(e)}")
 
 @app.get("/ontology/data-properties")
 def get_data_properties():
     """
-    Obtains detailed information about all data properties in the ontology
-    
-    Returns:
-        List of data properties with all their information
+    @brief Returns detailed information about all datatype properties in the loaded ontology.
+    For each property, includes its IRI, label, comment, domain classes, range types,
+    and whether it is declared as functional.
+    @return JSON with total property count and a list of datatype property descriptors.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the query fails.
     """
     global current_ontology
     
     if current_ontology is None:
         raise HTTPException(
             status_code=400, 
-            detail="No hay ontología cargada. Usa POST /ontology/load primero"
+            detail="No ontology loaded. Use POST /ontology/load first"
         )
     
     try:
         properties_info = []
         
         for prop in current_ontology.data_properties():
-            # Get domain (classes that can have this property)
+            # Get domain
             domain = []
             if hasattr(prop, 'domain'):
                 domain = [str(d.iri) if hasattr(d, 'iri') else str(d) for d in prop.domain]
             
-            # Get range (data type)
+            # Get range
             range_types = []
             if hasattr(prop, 'range'):
                 range_types = [str(r) for r in prop.range]
@@ -980,14 +968,15 @@ def get_data_properties():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting data properties: {str(e)}")
 
-
 @app.get("/ontology/object-properties")
 def get_object_properties():
     """
-    Obtains detailed information about all object properties in the ontology
-    
-    Returns:
-        List of object properties with all their information
+    @brief Returns detailed information about all object properties in the loaded ontology.
+    For each property, includes its IRI, label, comment, domain, range, inverse property,
+    and whether it is functional, transitive, or symmetric.
+    @return JSON with total property count and a list of object property descriptors.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the query fails.
     """
     global current_ontology
     
@@ -1001,12 +990,12 @@ def get_object_properties():
         properties_info = []
         
         for prop in current_ontology.object_properties():
-            # Get domain (classes that can have this property)
+            # Get domain
             domain = []
             if hasattr(prop, 'domain'):
                 domain = [str(d.iri) if hasattr(d, 'iri') else str(d) for d in prop.domain]
             
-            # Get range (classes that can be the value)
+            # Get range
             range_classes = []
             if hasattr(prop, 'range'):
                 range_classes = [str(r.iri) if hasattr(r, 'iri') else str(r) for r in prop.range]
@@ -1038,14 +1027,15 @@ def get_object_properties():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting object properties: {str(e)}")
 
-
 @app.get("/ontology/info")
 def get_ontology_info():
     """
-    Obtains detailed information about the loaded ontology
-    
-    Returns:
-        Complete information about the ontology
+    @brief Returns a full summary of the currently loaded ontology.
+    Includes the base IRI, imported ontologies, and complete lists of all
+    class names, individual names, object properties, and datatype properties.
+    @return JSON with the ontology IRI, imported ontologies, statistics, and name lists.
+    @throws HTTPException 400 if no ontology is loaded.
+    @throws HTTPException 500 if the query fails.
     """
     global current_ontology
     
@@ -1082,10 +1072,10 @@ def get_ontology_info():
 @app.get("/ontology/projects")
 def list_projects():
     """
-    List all saved ontology projects in the projects folder
-    
-    Returns:
-        List of project files with metadata
+    @brief Lists all ontology project files saved in the server's projects folder.
+    Scans for .owl and .ttl files, returns metadata for each, sorted by last modified date.
+    @return JSON with a list of project descriptors (filename, display name, size, timestamp).
+    @throws HTTPException 500 if the directory cannot be read.
     """
     try:
         if not os.path.exists(PROJECTS_DIR):
@@ -1096,7 +1086,6 @@ def list_projects():
             if filename.endswith('.owl') or filename.endswith('.ttl'):
                 filepath = os.path.join(PROJECTS_DIR, filename)
                 
-                # Get file metadata
                 file_stat = os.stat(filepath)
                 file_size = file_stat.st_size
                 modified_time = file_stat.st_mtime
@@ -1114,7 +1103,7 @@ def list_projects():
                     "filepath": filepath
                 })
         
-        # Sort by modified time (newest first)
+        # Sort by modified time
         projects.sort(key=lambda x: x['modified_timestamp'], reverse=True)
         
         return {"projects": projects, "count": len(projects)}
@@ -1125,18 +1114,18 @@ def list_projects():
 @app.get("/ontology/projects/{filename}")
 def get_project_file(filename: str):
     """
-    Retrieve a specific project file
-    
-    Args:
-        filename: Name of the project file
-    
-    Returns:
-        The ontology file
+    @brief Retrieves a specific ontology project file from the projects folder.
+    Includes a path traversal security check to prevent access outside the projects directory.
+    @param filename Name of the project file (e.g. my_disease.owl).
+    @return The ontology file as a binary download response.
+    @throws HTTPException 403 if the resolved path escapes the projects directory.
+    @throws HTTPException 404 if the file does not exist.
+    @throws HTTPException 500 if the file cannot be served.
     """
     try:
         filepath = os.path.join(PROJECTS_DIR, filename)
         
-        # Security check: ensure file is in projects directory
+        # Ensure file is in projects directory
         if not os.path.abspath(filepath).startswith(os.path.abspath(PROJECTS_DIR)):
             raise HTTPException(status_code=403, detail="Access denied")
         
@@ -1157,14 +1146,13 @@ def get_project_file(filename: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving project: {str(e)}")
 
-
 @app.delete("/ontology/clear")
 def clear_ontology():
     """
-    Clears the loaded ontology from memory
-    
-    Returns:
-        Confirmation of clearing
+    @brief Clears the currently loaded ontology from memory and deletes any temporary file.
+    This is useful to free up resources or to reset the state before loading a new ontology.
+    @return JSON confirming the ontology has been cleared.
+    @throws HTTPException 500 if an error occurs while clearing the ontology.
     """
     global current_ontology, ontology_file_path
     
