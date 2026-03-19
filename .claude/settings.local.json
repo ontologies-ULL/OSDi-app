@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find c:UsersramosDesktopOSDi-appfrontendsrcpages -name *.jsx)",
-      "Bash(grep -n \"style jsx\" c:/Users/ramos/Desktop/OSDi-app/frontend/src/pages/*.jsx)"
-    ]
-  }
-}
