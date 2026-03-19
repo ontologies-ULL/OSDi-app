@@ -23,6 +23,10 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
     });
   }, [handleChange]);
 
+  const isOutOfRange = utilityData.value !== '' &&
+    utilityData.value !== undefined &&
+    (parseFloat(utilityData.value) < 0 || parseFloat(utilityData.value) > 1);
+
   return (
     <div className="bg-slate-50 backdrop-blur-sm rounded-2xl border-2 border-slate-200 overflow-hidden transition-all hover:border-slate-300 hover:shadow-md">
 
@@ -67,6 +71,14 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
       {/* ── Contenido colapsable ── */}
       {isExpanded && (
         <div className="p-6 pt-4 space-y-4 border-t border-slate-100 bg-white/40">
+
+          {/* Hint box: range 0-1 */}
+          <div className="flex items-start gap-3 p-3 bg-rose-50 rounded-xl border border-rose-200">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <p className="text-xs text-rose-700 leading-relaxed">
+              <strong>Utilidad / Desutilidad:</strong> El valor debe estar entre <strong>0</strong> y <strong>1</strong>.
+            </p>
+          </div>
 
           {/* Nombre identificativo */}
           <div className="space-y-2">
@@ -144,6 +156,13 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
                   />
                 </div>
               </div>
+
+              {isOutOfRange && (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">El valor debe estar entre <strong>0</strong> y <strong>1</strong>.</p>
+                </div>
+              )}
 
               {utilityData.isDisutility && (
                 <div className="flex items-start space-x-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
@@ -226,6 +245,13 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
                   />
                 </div>
               </div>
+
+              {isOutOfRange && (
+                <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800">El valor debe estar entre <strong>0</strong> y <strong>1</strong>.</p>
+                </div>
+              )}
 
               {utilityData.isDisutility && (
                 <div className="flex items-start space-x-3 p-4 bg-amber-50 rounded-xl border border-amber-200">
