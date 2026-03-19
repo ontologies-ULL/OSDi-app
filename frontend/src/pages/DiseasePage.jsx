@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Pencil, Stethoscope, Database, ShieldCheck, GitBranch } from 'lucide-react';
+import { ArrowRight, Pencil, Stethoscope, Database, ShieldCheck, GitBranch, Save, AlertCircle, CheckCircle } from 'lucide-react';
 import OntologyFlowGraph from '../components/OntologyFlowGraph';
 import DiseaseTabs from '../components/DiseaseTabs';
+import { createIndividual } from '../api/ontology';
+import useSaveStatus from '../hooks/useSaveStatus';
 
 const DISEASE_SUBTYPES = [
   { id: 'InheritedDisease', label: 'Hereditaria', desc: 'Causada por variantes genéticas heredadas' },
@@ -9,7 +11,7 @@ const DISEASE_SUBTYPES = [
   { id: 'InfectiousDisease', label: 'Infecciosa', desc: 'Causada por agentes patógenos externos (virus, bacterias, parásitos)' },
 ];
 
-function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, setDiseaseName, graphNodes = [], graphEdges = [], diseases = [], editingDiseaseIndex = null }) {
+function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, setDiseaseName, graphNodes = [], graphEdges = [], diseases = [], editingDiseaseIndex = null, onSaveDiseaseSnapshot }) {
   const [formData, setFormData] = useState({
     label: diseaseData.label || '',
     comment: diseaseData.comment || '',
@@ -36,8 +38,30 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
     if (setDiseaseName) setDiseaseName(formData.label);
   }, [formData, references, setDiseaseData]);
 
+  const { saving, success, error, withSave } = useSaveStatus();
+
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleReferenceChange = (e) => setReferences({ ...references, [e.target.name]: e.target.value });
+
+  const handleSave = () => {
+    if (!formData.label) return;
+    withSave(async () => {
+      const datatypeProperties = Object.entries(references)
+        .filter(([, v]) => v)
+        .map(([k, v]) => ({ property: k, value: v }));
+      if (formData.comment) datatypeProperties.push({ property: 'hasDescription', value: formData.comment });
+
+      await createIndividual({
+        label: formData.label,
+        comment: formData.comment,
+        selectedClasses: ['Disease', ...formData.selectedSubtypes],
+        datatypeProperties,
+        objectProperties: [],
+      });
+
+      if (onSaveDiseaseSnapshot) onSaveDiseaseSnapshot(diseaseData);
+    });
+  };
 
   const handleSubtypeToggle = (id) => {
     setFormData(prev => ({

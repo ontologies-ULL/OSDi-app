@@ -209,6 +209,7 @@ function App() {
             setStages={setStages}
             graphNodes={graphNodes}
             graphEdges={graphEdges}
+            onSaveDiseaseSnapshot={handleSaveDiseaseSnapshot}
           />
         );
 
@@ -218,6 +219,7 @@ function App() {
             onNavigate={handleNavigate}
             currentPage={currentPage}
             diseaseData={diseaseData}
+            diseases={diseases}
             populations={populations}
             setPopulations={setPopulations}
             populationToEdit={populationToEdit}
@@ -231,6 +233,8 @@ function App() {
             onNavigate={handleNavigate}
             currentPage={currentPage}
             diseaseData={diseaseData}
+            diseases={diseases}
+            progressionElements={allProgressionElements}
 
             interventions={interventions}
             setInterventions={setInterventions}

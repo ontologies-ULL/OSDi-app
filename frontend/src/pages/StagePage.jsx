@@ -15,7 +15,7 @@ const EMPTY_STAGE = {
 };
 
 // Props: stages and setStages come from App.jsx (persisted across navigation)
-function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progressionElements = [], stages, setStages, graphNodes = [], graphEdges = [] }) {
+function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progressionElements = [], stages, setStages, graphNodes = [], graphEdges = [], onSaveDiseaseSnapshot }) {
   const [form, setForm] = useState({ ...EMPTY_STAGE });
   const [expandedStages, setExpandedStages] = useState([]);
 
@@ -89,6 +89,8 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
         datatypeProperties: datatypeProps,
         objectProperties: progressionObjectProps
       });
+
+      if (onSaveDiseaseSnapshot) onSaveDiseaseSnapshot(diseaseData);
     });
   };
 

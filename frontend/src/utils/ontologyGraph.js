@@ -23,7 +23,7 @@ export function buildFullGraph({
   const nodes = [];
   const edges = [];
 
-  if (!diseaseData?.label) return { nodes, edges };
+  const hasDisease = Boolean(diseaseData?.label);
 
   const STEP_X = 250;
   const STEP_Y = 220;
@@ -46,6 +46,9 @@ export function buildFullGraph({
     stages.length             > 0 ? { tag: 'stage', items: stages }             : null,
   ].filter(Boolean);
 
+  // If nothing to render at all, return empty
+  if (!hasDisease && groups.length === 0) return { nodes, edges };
+
   const maxItems  = Math.max(1, ...groups.map(g => g.items.length));
   const totalWidth = (maxItems - 1) * STEP_X;
 
@@ -55,28 +58,32 @@ export function buildFullGraph({
     return startX + i * STEP_X;
   };
 
-  // ── Disease node ────────────────────────────────────────────────────────────
-  const subtypePart = diseaseData.selectedSubtypes?.length > 0
-    ? diseaseData.selectedSubtypes.map(s => s.replace('Disease', '')).join(' · ')
-    : null;
-  const descPart = diseaseData.comment
-    ? diseaseData.comment.slice(0, 65) + (diseaseData.comment.length > 65 ? '…' : '')
-    : null;
+  // ── Disease node (only when label is set) ───────────────────────────────────
+  if (hasDisease) {
+    const subtypePart = diseaseData.selectedSubtypes?.length > 0
+      ? diseaseData.selectedSubtypes.map(s => s.replace('Disease', '')).join(' · ')
+      : null;
+    const descPart = diseaseData.comment
+      ? diseaseData.comment.slice(0, 65) + (diseaseData.comment.length > 65 ? '…' : '')
+      : null;
 
-  nodes.push({
-    id:   'disease',
-    type: 'ontology',
-    data: {
-      label:    diseaseData.label,
-      nodeType: 'Disease',
-      subtitle: [subtypePart, descPart].filter(Boolean).join('\n') || null,
-    },
-    position: { x: totalWidth / 2, y: 0 },
-  });
+    nodes.push({
+      id:   'disease',
+      type: 'ontology',
+      data: {
+        label:    diseaseData.label,
+        nodeType: 'Disease',
+        subtitle: [subtypePart, descPart].filter(Boolean).join('\n') || null,
+      },
+      position: { x: totalWidth / 2, y: 0 },
+    });
+  }
 
   // ── Entity rows ──────────────────────────────────────────────────────────────
+  // When there is no disease node, rows start at y=0; otherwise they start at STEP_Y
+  const rowOffset = hasDisease ? 1 : 0;
   groups.forEach(({ tag, items }, rowIdx) => {
-    const rowY = (rowIdx + 1) * STEP_Y;
+    const rowY = (rowIdx + rowOffset) * STEP_Y;
     const n    = items.length;
 
     items.forEach((item, i) => {
@@ -117,9 +124,9 @@ export function buildFullGraph({
         position: { x: xFor(n, i), y: rowY },
       });
 
-      // Disease → entity edge (skip hasNext-target stages)
+      // Disease → entity edge (only when disease node exists, skip hasNext-target stages)
       const skipStage = tag === 'stage' && isNextStage.has(item.label);
-      if (!skipStage) {
+      if (hasDisease && !skipStage) {
         edges.push({
           id:        `e_dis_${nodeId}`,
           source:    'disease',

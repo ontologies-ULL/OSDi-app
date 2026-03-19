@@ -9,7 +9,7 @@ import { createIndividual, createStochasticParameter } from '../api/ontology';
 import EpidemiologicalParameterCard from '../components/EpidemiologicalParameterCard';
 
 // ── Empty templates ────────────────────────────────────────────────────────────
-const EMPTY_FORM = { label: '', comment: '' };
+const EMPTY_FORM = { label: '', comment: '', associatedDisease: '' };
 
 const EMPTY_DEMOGRAPHICS = {
   age: '', minAge: '', maxAge: '', geographicLocation: '', populationSize: ''
@@ -28,7 +28,7 @@ const EMPTY_LIFE_EXPECTANCY = {
   alpha: '', beta: '', lambda: '', confidenceInterval: '95', sampleSize: ''
 };
 
-function PopulationPage({ onNavigate, currentPage, diseaseData, populations, setPopulations, populationToEdit, onPopulationToEditHandled }) {
+function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], populations, setPopulations, populationToEdit, onPopulationToEditHandled }) {
   const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [demographics, setDemographics] = useState({ ...EMPTY_DEMOGRAPHICS });
   const [sexData, setSexData] = useState({ ...EMPTY_SEX });
@@ -42,6 +42,12 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
 
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const handleDemographicsChange = (e) => setDemographics({ ...demographics, [e.target.name]: e.target.value });
+
+  // Effective disease label: auto if only 1 disease, selector if > 1, fallback to global diseaseData
+  const effectiveDiseaseLabel =
+    diseases.length === 1 ? diseases[0].diseaseData.label :
+    diseases.length > 1  ? formData.associatedDisease :
+    diseaseData.label;
 
   // ── Load a saved population into the form ──────────────────────────────────
   const loadPopulation = (index) => {
@@ -127,36 +133,40 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
       }
 
       // 4. Epidemiological parameters
-      if (diseaseData.label) {
+      if (effectiveDiseaseLabel) {
+        const diseaseObjProp = [{ property: 'isParameterOf', value: effectiveDiseaseLabel }];
         if (prevalenceData.value) {
           await createStochasticParameter(
             prevalenceData,
-            `${diseaseData.label}_Prevalence`,
-            `Prevalence for ${diseaseData.label}`,
+            `${effectiveDiseaseLabel}_Prevalence`,
+            `Prevalence for ${effectiveDiseaseLabel}`,
             ['EpidemiologicalParameter'],
-            [{ property: 'hasDataItemType', value: 'DI_Prevalence' }]
+            [{ property: 'hasDataItemType', value: 'DI_Prevalence' }],
+            diseaseObjProp
           );
-          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Prevalence` });
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${effectiveDiseaseLabel}_Prevalence` });
         }
         if (incidenceData.value) {
           await createStochasticParameter(
             incidenceData,
-            `${diseaseData.label}_Incidence`,
-            `Incidence for ${diseaseData.label}`,
+            `${effectiveDiseaseLabel}_Incidence`,
+            `Incidence for ${effectiveDiseaseLabel}`,
             ['EpidemiologicalParameter'],
-            [{ property: 'hasDataItemType', value: 'DI_Incidence' }]
+            [{ property: 'hasDataItemType', value: 'DI_Incidence' }],
+            diseaseObjProp
           );
-          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Incidence` });
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${effectiveDiseaseLabel}_Incidence` });
         }
         if (mortalityData.value) {
           await createStochasticParameter(
             mortalityData,
-            `${diseaseData.label}_Mortality`,
-            `Mortality for ${diseaseData.label}`,
+            `${effectiveDiseaseLabel}_Mortality`,
+            `Mortality for ${effectiveDiseaseLabel}`,
             ['EpidemiologicalParameter'],
-            []
+            [],
+            diseaseObjProp
           );
-          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${diseaseData.label}_Mortality` });
+          populationObjectProps.push({ property: 'hasEpidemiologicalParameter', value: `${effectiveDiseaseLabel}_Mortality` });
         }
       }
 
@@ -233,24 +243,34 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
 
   // ── Table data ─────────────────────────────────────────────────────────────
   const tableData = [
-    { category: 'General', property: 'Nombre', value: formData.label || '-' },
-    { category: 'General', property: 'Descripción', value: formData.comment || '-' },
-    { category: 'General', property: 'Tamaño', value: demographics.populationSize || '-' },
-    { category: 'Demografía', property: 'Edad Media', value: demographics.age || '-' },
-    { category: 'Demografía', property: 'Edad Mínima', value: demographics.minAge || '0' },
-    { category: 'Demografía', property: 'Edad Máxima', value: demographics.maxAge || '-' },
-    { category: 'Demografía', property: 'Ubicación', value: demographics.geographicLocation || '-' },
-    { category: 'Demografía', property: 'Proporción Femenina', value: sexData.femaleProportion || '-' },
-    { category: 'Demografía', property: 'Modo', value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Expectativa', property: 'Esperanza de Vida', value: lifeExpectancy.value || '-' },
-    { category: 'Expectativa', property: 'Modo', value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Expectativa', property: 'Fuente', value: lifeExpectancy.source || '-' },
-    { category: 'Epidemiología', property: 'Prevalencia', value: prevalenceData.value || '-' },
-    { category: 'Epidemiología', property: 'Incidencia', value: incidenceData.value || '-' },
-    { category: 'Epidemiología', property: 'Mortalidad', value: mortalityData.value || '-' },
-    ...customAttributes.filter(a => a.name).map(a => ({
-      category: 'Personalizado', property: a.name, value: a.value || '-'
-    }))
+    { category: 'General',      property: 'Nombre',               value: formData.label || '-' },
+    { category: 'General',      property: 'Descripción',           value: formData.comment || '-' },
+    { category: 'General',      property: 'Enfermedad',            value: effectiveDiseaseLabel || '-' },
+    { category: 'Demografía',   property: 'Tamaño',                value: demographics.populationSize || '-' },
+    { category: 'Demografía',   property: 'Edad Media',            value: demographics.age || '-' },
+    { category: 'Demografía',   property: 'Edad Mínima',           value: demographics.minAge || '0' },
+    { category: 'Demografía',   property: 'Edad Máxima',           value: demographics.maxAge || '-' },
+    { category: 'Demografía',   property: 'Ubicación',             value: demographics.geographicLocation || '-' },
+    { category: 'Demografía',   property: 'Proporción Femenina',   value: sexData.femaleProportion || '-' },
+    { category: 'Demografía',   property: 'Modo Sexo',             value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Demografía',   property: 'Fuente Sexo',           value: sexData.source || '-' },
+    { category: 'Expectativa',  property: 'Esperanza de Vida',     value: lifeExpectancy.value || '-' },
+    { category: 'Expectativa',  property: 'Modo',                  value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa',  property: 'Fuente',                value: lifeExpectancy.source || '-' },
+    { category: 'Epidemiología', property: 'Prevalencia',          value: prevalenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Prevalencia',     value: prevalenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Prevalencia',   value: prevalenceData.source || '-' },
+    { category: 'Epidemiología', property: 'Incidencia',           value: incidenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Incidencia',      value: incidenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Incidencia',    value: incidenceData.source || '-' },
+    { category: 'Epidemiología', property: 'Mortalidad',           value: mortalityData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Mortalidad',      value: mortalityData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Mortalidad',    value: mortalityData.source || '-' },
+    ...customAttributes.filter(a => a.name).flatMap(a => ([
+      { category: 'Personalizado', property: a.name,              value: a.value || '-' },
+      { category: 'Personalizado', property: `Modo ${a.name}`,   value: a.isStochastic ? 'Estocástico' : 'Determinístico' },
+      { category: 'Personalizado', property: `Fuente ${a.name}`, value: a.source || '-' },
+    ]))
   ];
 
   const categoryColor = (cat) => {
@@ -323,6 +343,18 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
                     rows="2"
                     className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm resize-none" />
                 </div>
+                {diseases.length > 1 && (
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Enfermedad asociada</label>
+                    <select name="associatedDisease" value={formData.associatedDisease} onChange={handleInputChange}
+                      className="w-full px-5 py-4 bg-white/80 border border-slate-300 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all shadow-sm text-sm">
+                      <option value="">Selecciona una enfermedad</option>
+                      {diseases.map((d, i) => (
+                        <option key={i} value={d.diseaseData.label}>{d.diseaseData.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -441,21 +473,34 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
                     option1="Simple (Determinístico)" option2="Avanzado (Segundo Orden)"
                     name="isStochastic" color="blue" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                    {sexData.isStochastic ? 'Valor Esperado (0-1)' : 'Proporción Femenina (0-1)'}
-                  </label>
-                  <input type="number" step="0.01" min="0" max="1" name="femaleProportion"
-                    value={sexData.femaleProportion}
-                    onChange={(e) => setSexData({ ...sexData, femaleProportion: e.target.value })}
-                    placeholder="0.5"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
-                </div>
+                {!sexData.isStochastic && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Proporción Femenina (0-1)</label>
+                    <input type="number" step="0.01" min="0" max="1" name="femaleProportion"
+                      value={sexData.femaleProportion}
+                      onChange={(e) => setSexData({ ...sexData, femaleProportion: e.target.value })}
+                      placeholder="0.5"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
+                  </div>
+                )}
                 {sexData.isStochastic && (
                   <StochasticConfig
                     data={sexData}
-                    onChange={(e) => setSexData({ ...sexData, [e.target.name]: e.target.value })}
+                    onChange={(e) => {
+                      const field = e.target.name === 'value' ? 'femaleProportion' : e.target.name;
+                      setSexData(prev => ({ ...prev, [field]: e.target.value }));
+                    }}
                     color="blue" />
+                )}
+                {sexData.isStochastic && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor Esperado (0-1)</label>
+                    <input type="number" step="0.01" min="0" max="1" name="femaleProportion"
+                      value={sexData.femaleProportion}
+                      onChange={(e) => setSexData({ ...sexData, femaleProportion: e.target.value })}
+                      placeholder="0.5"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
+                  </div>
                 )}
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
@@ -488,20 +533,29 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
                     option1="Simple (Determinístico)" option2="Avanzado (Estocástico)"
                     name="isStochastic" color="blue" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                    {lifeExpectancy.isStochastic ? 'Valor Esperado (años)' : 'Esperanza de Vida (años)'}
-                  </label>
-                  <input type="number" step="0.1" name="value" value={lifeExpectancy.value}
-                    onChange={handleLifeExpectancyChange}
-                    placeholder="80.5"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
-                </div>
+                {!lifeExpectancy.isStochastic && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Esperanza de Vida (años)</label>
+                    <input type="number" step="0.1" name="value" value={lifeExpectancy.value}
+                      onChange={handleLifeExpectancyChange}
+                      placeholder="80.5"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
+                  </div>
+                )}
                 {lifeExpectancy.isStochastic && (
                   <StochasticConfig
                     data={lifeExpectancy}
                     onChange={handleLifeExpectancyChange}
                     color="blue" />
+                )}
+                {lifeExpectancy.isStochastic && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor Esperado (años)</label>
+                    <input type="number" step="0.1" name="value" value={lifeExpectancy.value}
+                      onChange={handleLifeExpectancyChange}
+                      placeholder="80.5"
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none transition-all" />
+                  </div>
                 )}
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
@@ -542,7 +596,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre *</label>
                         <input type="text" value={attr.name}
@@ -565,20 +619,29 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, populations, set
                         option1="Simple (Determinístico)" option2="Avanzado (Estocástico)"
                         name="isStochastic" color="blue" />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
-                        {attr.isStochastic ? 'Valor Esperado *' : 'Valor *'}
-                      </label>
-                      <input type="number" step="any" value={attr.value}
-                        onChange={(e) => attrHandlers.update(attr.id, 'value', e.target.value)}
-                        placeholder="0.0"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
-                    </div>
+                    {!attr.isStochastic && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor *</label>
+                        <input type="number" step="any" value={attr.value}
+                          onChange={(e) => attrHandlers.update(attr.id, 'value', e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                      </div>
+                    )}
                     {attr.isStochastic && (
                       <StochasticConfig
                         data={attr}
                         onChange={(e) => attrHandlers.update(attr.id, e.target.name, e.target.value)}
                         color="blue" />
+                    )}
+                    {attr.isStochastic && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor Esperado *</label>
+                        <input type="number" step="any" value={attr.value}
+                          onChange={(e) => attrHandlers.update(attr.id, 'value', e.target.value)}
+                          placeholder="0.0"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 outline-none" />
+                      </div>
                     )}
                     <div className="space-y-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
