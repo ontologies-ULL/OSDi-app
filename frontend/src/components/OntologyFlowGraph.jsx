@@ -1,14 +1,41 @@
-import React from 'react';
+/**
+ * @file OntologyFlowGraph.jsx
+ * @brief ReactFlow-based interactive graph for visualising the OSDi ontology model.
+ *
+ * Renders a read-only (non-connectable) ReactFlow canvas with a custom node
+ * type (`OntologyNode`) that visually encodes the OWL class of each individual.
+ * When `nodesProp` is empty the component shows a friendly empty-state message
+ * instead of an empty canvas.
+ *
+ * Node types rendered:
+ * - `Disease`, `AcuteManifestation`, `ChronicManifestation`
+ * - `CoexistentDiseaseProgressionSet`, `AlternativeDiseaseProgressionSet`,
+ *   `SequentialDiseaseProgressionSet`
+ * - `Development`, `Stage`
+ *
+ * @module components/OntologyFlowGraph
+ */
+
+import { useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
   Handle,
   Position,
+  useNodesState,
+  useEdgesState,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { GitBranch } from 'lucide-react';
 
-// ── Node visual config by ontology type ──────────────────────────────────────
+/**
+ * @brief Visual style configuration keyed by OWL ontology type string.
+ *
+ * Each entry defines the background colour, border colour, text colour, and
+ * a localised badge label used inside `OntologyNode`.
+ *
+ * @type {Object.<string, {bg: string, border: string, text: string, badge: string}>}
+ */
 const TYPE_CONFIG = {
   Disease:                          { bg: '#d1fae5', border: '#059669', text: '#065f46', badge: 'Enfermedad' },
   AcuteManifestation:               { bg: '#fef9c3', border: '#ca8a04', text: '#713f12', badge: 'Manifestación Aguda' },
@@ -20,13 +47,32 @@ const TYPE_CONFIG = {
   Stage:                            { bg: '#fdf4ff', border: '#a21caf', text: '#581c87', badge: 'Etapa' },
 };
 
-// ── Manifestation type helpers ────────────────────────────────────────────────
+/**
+ * @brief Colour tokens for embedded manifestation chips inside Development / Stage nodes.
+ * @type {Object.<string, {color: string, bg: string, badge: string}>}
+ */
 const MANIF_STYLE = {
   AcuteManifestation:   { color: '#ca8a04', bg: '#fef9c3', badge: 'Aguda' },
   ChronicManifestation: { color: '#d97706', bg: '#fef3c7', badge: 'Crónica' },
 };
 
-// ── Custom node ───────────────────────────────────────────────────────────────
+/**
+ * @brief Custom ReactFlow node that renders an OSDi ontology individual.
+ *
+ * Displays a badge (OWL class), a label (individual IRI), an optional subtitle,
+ * and — for Development / Stage nodes — an embedded list of linked manifestations.
+ * Four ReactFlow handles (top, bottom, left, right) allow edges to attach from
+ * any direction.
+ *
+ * @param {Object}          props.data             - Node data payload from ReactFlow.
+ * @param {string}          props.data.label       - IRI label of the individual.
+ * @param {string}          props.data.nodeType    - OWL class name; used to look up `TYPE_CONFIG`.
+ * @param {string}          [props.data.subtitle]  - Optional subtitle text; `'\n'` inserts line breaks.
+ * @param {Array<{label: string, type: string, description?: string}>} [props.data.children]
+ *   Embedded manifestation objects shown inside the node body.
+ *
+ * @returns {JSX.Element} The rendered ontology node.
+ */
 function OntologyNode({ data }) {
   const cfg = TYPE_CONFIG[data.nodeType] || TYPE_CONFIG.Disease;
   const hasChildren = data.children && data.children.length > 0;
@@ -44,7 +90,7 @@ function OntologyNode({ data }) {
       <Handle type="target" position={Position.Top}   style={{ background: cfg.border, width: 7, height: 7 }} />
       <Handle type="target" position={Position.Left}  style={{ background: cfg.border, width: 7, height: 7 }} />
 
-      {/* Badge */}
+      {/* Class badge */}
       <div style={{
         fontSize: 8,
         fontWeight: 900,
@@ -56,7 +102,7 @@ function OntologyNode({ data }) {
         {cfg.badge}
       </div>
 
-      {/* Label */}
+      {/* Individual label */}
       <div style={{
         fontSize: 11,
         fontWeight: 700,
@@ -82,7 +128,7 @@ function OntologyNode({ data }) {
         </div>
       ))}
 
-      {/* Embedded manifestations (children of Dev / Stage) */}
+      {/* Embedded manifestations (children of Development / Stage nodes) */}
       {hasChildren && (
         <div style={{ marginTop: 8, borderTop: `1px solid ${cfg.border}40`, paddingTop: 6 }}>
           <div style={{
@@ -133,13 +179,30 @@ function OntologyNode({ data }) {
   );
 }
 
+/** @brief ReactFlow node-type registry mapping the `'ontology'` type key to `OntologyNode`. */
 const nodeTypes = { ontology: OntologyNode };
 
-// ── Main component ────────────────────────────────────────────────────────────
-export default function OntologyFlowGraph({ nodes, edges, emptyMessage }) {
-  const graphKey = nodes.map(n => `${n.id}:${n.data?.label || ''}:${n.data?.subtitle || ''}`).join('|');
+/**
+ * @brief Interactive (read-only) ReactFlow canvas for the OSDi ontology graph.
+ *
+ * Syncs `nodesProp` and `edgesProp` into internal ReactFlow state via `useEffect`
+ * so the graph updates whenever the parent re-computes the layout. When no nodes
+ * are provided an empty-state illustration and message are shown instead.
+ *
+ * @param {Object[]} props.nodes          - ReactFlow node descriptors (from `buildFullGraph`).
+ * @param {Object[]} props.edges          - ReactFlow edge descriptors (from `buildFullGraph`).
+ * @param {string}   [props.emptyMessage] - Custom message shown when `nodes` is empty.
+ *
+ * @returns {JSX.Element} The rendered ReactFlow canvas or empty-state view.
+ */
+export default function OntologyFlowGraph({ nodes: nodesProp, edges: edgesProp, emptyMessage }) {
+  const [nodes, setNodes, onNodesChange] = useNodesState(nodesProp);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(edgesProp);
 
-  if (nodes.length === 0) {
+  useEffect(() => { setNodes(nodesProp); }, [nodesProp, setNodes]);
+  useEffect(() => { setEdges(edgesProp); }, [edgesProp, setEdges]);
+
+  if (nodesProp.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3 p-8">
         <GitBranch className="w-12 h-12 text-slate-300" />
@@ -152,9 +215,10 @@ export default function OntologyFlowGraph({ nodes, edges, emptyMessage }) {
 
   return (
     <ReactFlow
-      key={graphKey}
-      defaultNodes={nodes}
-      defaultEdges={edges}
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
       nodeTypes={nodeTypes}
       fitView
       fitViewOptions={{ padding: 0.25, minZoom: 0.3 }}

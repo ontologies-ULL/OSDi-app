@@ -1,15 +1,47 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Save, AlertCircle, CheckCircle, Pill, Book, ShieldCheck, Target, Table as TableIcon, DollarSign, Zap, Sparkles, Plus, Pencil, X, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+/**
+ * @file InterventionsPage.jsx
+ * @brief Page for defining interventions and their HEOR parameters in the OSDi model.
+ *
+ * Allows the user to create and edit individuals of type `TherapeuticIntervention`,
+ * `ScreeningIntervention`, or `DiagnosisIntervention` in the OSDi ontology,
+ * together with all their associated sub-parameters: costs, utilities, effects, and,
+ * for screening / diagnosis only, sensitivity and specificity values.
+ *
+ * @module pages/InterventionsPage
+ */
+
+import { useState, useEffect } from 'react';
+import { Save, AlertCircle, CheckCircle, Pill, Book, ShieldCheck, Target, Table as TableIcon, DollarSign, Zap, Sparkles, Pencil } from 'lucide-react';
 import ToggleButton from '../components/ToggleButton';
 import CostCard from '../components/CostCard';
 import UtilityCard from '../components/UtilityCard';
 import DetectionParameterCard from '../components/DetectionParameterCard';
-import { StochasticConfig } from '../components/AdvancedParameterComponent';
+import SectionCard from '../components/SectionCard';
+import EffectCard from '../components/EffectCard';
 import useExpandableList from '../hooks/useExpandableList';
 import useSaveStatus from '../hooks/useSaveStatus';
 import { createIndividual, buildDistribution } from '../api/ontology';
 
-// ── Empty templates ───────────────────────────────────────────────────────────
+/**
+ * @brief Initial empty state for a cost entry.
+ * @property {string}  name               - Display name of the cost item.
+ * @property {string}  value              - Numeric cost amount.
+ * @property {string}  currency           - OSDi currency individual (default: 'Currency_Euro').
+ * @property {boolean} appliesOneTime     - true for a one-time payment, false for annual.
+ * @property {string}  source             - Bibliographic source.
+ * @property {string}  year               - Reference year for the cost value.
+ * @property {string}  parameterType      - 'Deterministic' or 'Stochastic'.
+ * @property {string}  distributionType   - Probability distribution family (default: 'Normal').
+ * @property {string}  lowerBound         - Lower bound of the distribution.
+ * @property {string}  upperBound         - Upper bound of the distribution.
+ * @property {string}  standardDeviation  - Standard deviation of the distribution.
+ * @property {string}  alpha              - Alpha shape parameter.
+ * @property {string}  beta               - Beta shape parameter.
+ * @property {string}  lambda             - Rate parameter.
+ * @property {string}  mean               - Distribution mean.
+ * @property {string}  confidenceInterval - Confidence interval width (default: '95').
+ * @property {string}  sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_COST = {
   name: '', value: '', currency: 'Currency_Euro', appliesOneTime: false,
   source: '', year: new Date().getFullYear().toString(),
@@ -19,6 +51,26 @@ const EMPTY_COST = {
   confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief Initial empty state for a utility/disutility entry.
+ * @property {string}  name               - Display name of the utility item.
+ * @property {string}  value              - Numeric utility value.
+ * @property {boolean} isDisutility       - true if this value represents a disutility.
+ * @property {boolean} appliesOneTime     - true for a one-time application.
+ * @property {string}  calculationMethod  - Method used to calculate the utility.
+ * @property {string}  source             - Bibliographic source.
+ * @property {string}  parameterType      - 'Deterministic' or 'Stochastic'.
+ * @property {string}  distributionType   - Probability distribution family (default: 'Beta').
+ * @property {string}  lowerBound         - Lower bound of the distribution.
+ * @property {string}  upperBound         - Upper bound of the distribution.
+ * @property {string}  standardDeviation  - Standard deviation of the distribution.
+ * @property {string}  alpha              - Alpha shape parameter.
+ * @property {string}  beta               - Beta shape parameter.
+ * @property {string}  lambda             - Rate parameter.
+ * @property {string}  mean               - Distribution mean.
+ * @property {string}  confidenceInterval - Confidence interval width (default: '95').
+ * @property {string}  sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_UTILITY = {
   name: '', value: '', isDisutility: false, appliesOneTime: false,
   calculationMethod: '', source: '',
@@ -28,6 +80,23 @@ const EMPTY_UTILITY = {
   confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief Initial empty state for a sensitivity or specificity detection parameter.
+ * @property {string} name                - Display name of the parameter.
+ * @property {string} value               - Numeric value [0-1].
+ * @property {string} source              - Bibliographic source.
+ * @property {string} parameterType       - 'Deterministic' or 'Stochastic'.
+ * @property {string} distributionType    - Probability distribution family (default: 'Beta').
+ * @property {string} lowerBound          - Lower bound of the distribution.
+ * @property {string} upperBound          - Upper bound of the distribution.
+ * @property {string} standardDeviation   - Standard deviation of the distribution.
+ * @property {string} alpha              - Alpha shape parameter.
+ * @property {string} beta               - Beta shape parameter.
+ * @property {string} lambda             - Rate parameter.
+ * @property {string} mean               - Distribution mean.
+ * @property {string} confidenceInterval - Confidence interval width (default: '95').
+ * @property {string} sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_DETECTION_PARAM = {
   name: '', value: '', source: '',
   parameterType: 'Deterministic', distributionType: 'Beta',
@@ -36,6 +105,25 @@ const EMPTY_DETECTION_PARAM = {
   confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief Initial empty state for an intervention effect (ModifierParameter).
+ * @property {string}   name                - Display name of the effect.
+ * @property {string}   description         - Free-text description of the effect.
+ * @property {string}   effectType          - OSDi data item type (default: 'DI_Continuous_Variable').
+ * @property {string}   value               - Numeric value of the effect.
+ * @property {string[]} modifiesTargets     - Array of progression element labels this effect modifies.
+ * @property {string}   _modifiesInput      - Transient input buffer for manual target entry (not persisted to ontology).
+ * @property {string}   parameterType       - 'Deterministic' or 'Stochastic'.
+ * @property {string}   distributionType    - Probability distribution family (default: 'Normal').
+ * @property {string}   lowerBound          - Lower bound of the distribution.
+ * @property {string}   upperBound          - Upper bound of the distribution.
+ * @property {string}   standardDeviation   - Standard deviation of the distribution.
+ * @property {string}   alpha              - Alpha shape parameter.
+ * @property {string}   beta               - Beta shape parameter.
+ * @property {string}   mean               - Distribution mean.
+ * @property {string}   confidenceInterval - Confidence interval width (default: '95').
+ * @property {string}   sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_EFFECT = {
   name: '',
   description: '',
@@ -50,6 +138,14 @@ const EMPTY_EFFECT = {
   confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief Initial empty state for the general intervention form.
+ * @property {string}  label              - Local IRI name of the ontology individual.
+ * @property {string}  comment            - Free-text description.
+ * @property {string}  interventionType   - OSDi class: 'TherapeuticIntervention', 'ScreeningIntervention', or 'DiagnosisIntervention'.
+ * @property {boolean} isAssessed         - Whether this intervention is assessed in the model.
+ * @property {string}  associatedDisease  - Label of the associated disease (only when there is more than one disease).
+ */
 const EMPTY_FORM = {
   label: '', comment: '',
   interventionType: 'TherapeuticIntervention',
@@ -57,7 +153,33 @@ const EMPTY_FORM = {
   associatedDisease: ''
 };
 
-function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = [], populationData, progressionElements = [], interventions, setInterventions, interventionToEdit, onInterventionToEditHandled }) {
+/**
+ * @brief React page component for creating and editing Intervention individuals.
+ *
+ * Renders a two-column layout:
+ * - **Left panel**: form with sections for general info, costs, utilities,
+ *   sensitivity/specificity (screening/diagnosis only), and effects.
+ * - **Right panel**: live preview table that reflects the current form values.
+ *
+ * On save the component sequentially calls the ontology API to persist each
+ * sub-parameter, then creates the main intervention individual linking all of
+ * them via object properties.
+ *
+ * @param {Function}   props.onNavigate                  - Callback to navigate to another page.
+ * @param {string}     props.currentPage                 - Identifier of the active page.
+ * @param {Object}     props.diseaseData                 - Global disease data (fallback when no disease list).
+ * @param {Array}      props.diseases                    - Array of all saved disease snapshots.
+ * @param {Object}     props.populationData              - Current population data (passed for context).
+ * @param {Array}      props.progressionElements         - Array of `{label, type}` objects from the progression page, used to populate the effect target picker.
+ * @param {Array}      props.interventions               - Array of all saved intervention snapshots.
+ * @param {Function}   props.setInterventions            - State setter for the interventions array.
+ * @param {number|null} props.interventionToEdit         - Index of the intervention to load for editing,
+ *                                                        or -1 to reset the form, or null for no-op.
+ * @param {Function}   props.onInterventionToEditHandled - Callback to acknowledge the edit request.
+ *
+ * @returns {JSX.Element} The rendered interventions page.
+ */
+function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = [], progressionElements = [], interventions, setInterventions, interventionToEdit, onInterventionToEditHandled }) {
   const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [costsData, expandedCosts, costHandlers] = useExpandableList([], EMPTY_COST);
   const [utilitiesData, expandedUtilities, utilityHandlers] = useExpandableList([], EMPTY_UTILITY);
@@ -67,17 +189,28 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
   const [editingIndex, setEditingIndex] = useState(null);
   const { saving, success, error, withSave } = useSaveStatus();
 
+  /** @brief Generic change handler for the general form fields, supporting both input and checkbox elements. */
   const handleInputChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setFormData({ ...formData, [e.target.name]: value });
   };
 
+  /**
+   * @brief Resolves which disease label to associate with this intervention.
+   *
+   * - Single disease: uses the only available disease label automatically.
+   * - Multiple diseases: uses the value selected in the form dropdown.
+   * - No disease list: falls back to the global `diseaseData.label` prop.
+   */
   const effectiveDiseaseLabel =
     diseases.length === 1 ? diseases[0].diseaseData.label :
     diseases.length > 1  ? formData.associatedDisease :
     diseaseData.label;
 
-  // ── Load a saved intervention into the form ───────────────────────────────
+  /**
+   * @brief Loads a previously saved intervention snapshot into the form for editing.
+   * @param {number} index - Index of the intervention in the `interventions` array.
+   */
   const loadIntervention = (index) => {
     const inv = interventions[index];
     setFormData({ ...inv.formData });
@@ -89,7 +222,13 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     setEditingIndex(index);
   };
 
-  // ── Auto-load (or reset) intervention selected from Navbar dropdown ───────
+  /**
+   * @brief Effect that reacts to external edit requests coming from the Navbar dropdown.
+   *
+   * When `interventionToEdit` is set to a valid index the corresponding intervention
+   * is loaded into the form. When set to -1 the form is reset. After handling,
+   * `onInterventionToEditHandled` is called to clear the request.
+   */
   useEffect(() => {
     if (interventionToEdit !== null) {
       if (interventionToEdit === -1) {
@@ -99,9 +238,11 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
       }
       onInterventionToEditHandled();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interventionToEdit]);
 
+  /**
+   * @brief Resets all form sections to their empty initial state and clears edit mode.
+   */
   const cancelEdit = () => {
     setFormData({ ...EMPTY_FORM });
     costHandlers.reset();
@@ -112,7 +253,23 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     setEditingIndex(null);
   };
 
-  // ── Create deterministic or stochastic parameter ──────────────────────────
+  /**
+   * @brief Creates a single deterministic or stochastic parameter individual via the ontology API.
+   *
+   * When `paramData.parameterType` is `'Deterministic'`, a `DeterministicParameter` individual
+   * is created directly. When stochastic, a distribution individual is first built via
+   * `buildDistribution`, then a `SecondOrderUncertaintyParameter` individual is created
+   * referencing it through `hasUncertaintyCharacterization`.
+   *
+   * @param {string}   baseLabel                  - IRI label for the new parameter individual.
+   * @param {string}   comment                    - Description used as the ontology comment.
+   * @param {string[]} classes                    - Additional OSDi classes to assign (e.g. ['Cost']).
+   * @param {string}   dataItemType               - Value for the `hasDataItemType` object property.
+   * @param {Object}   paramData                  - Form data object containing value, distribution fields, etc.
+   * @param {Array}    [additionalDataProps=[]]   - Extra datatype properties to include.
+   * @param {Array}    [additionalObjectProps=[]] - Extra object properties to include.
+   * @returns {Promise<void>}
+   */
   const createParameter = async (baseLabel, comment, classes, dataItemType, paramData, additionalDataProps = [], additionalObjectProps = []) => {
     const baseDataProps = [
       { property: 'hasExpectedValue', value: parseFloat(paramData.value) },
@@ -146,7 +303,24 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     });
   };
 
-  // ── Save ──────────────────────────────────────────────────────────────────
+  /**
+   * @brief Persists the current form data to the OSDi ontology via the API.
+   *
+   * The save sequence is:
+   * 1. Costs — each cost entry creates a `Cost` + `DeterministicParameter` or
+   *    `SecondOrderUncertaintyParameter` individual.
+   * 2. Utilities — each entry creates a `Utility` parameter individual.
+   * 3. Effects — each entry creates a `ModifierParameter` individual with
+   *    `modifies` links to the selected progression elements.
+   * 4. Sensitivities — each entry creates a `Parameter` with `DI_Sensitivity` type.
+   * 5. Specificities — each entry creates a `Parameter` with `DI_Specificity` type.
+   * 6. Intervention individual — the main intervention individual that aggregates
+   *    all previously created individuals via object properties.
+   * 7. Local snapshot — stores a deep copy in the `interventions` state array.
+   *
+   * Entries with an empty `value` field are silently skipped.
+   * Does nothing if `formData.label` is empty.
+   */
   const handleSave = () => {
     if (!formData.label) return;
 
@@ -173,7 +347,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
         interventionObjectProps.push({ property: 'hasUtility', value: label });
       }
 
-      // 3. Effects (ModifierParameter — each can modify multiple targets)
+      // 3. Effects
       for (let i = 0; i < effectsData.length; i++) {
         const effect = effectsData[i];
         if (!effect.value) continue;
@@ -255,7 +429,11 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     });
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  /**
+   * @brief Maps an OSDi intervention type identifier to a human-readable label.
+   * @param {string} type - OSDi class name ('TherapeuticIntervention', 'ScreeningIntervention', 'DiagnosisIntervention').
+   * @returns {string} Localised display label.
+   */
   const typeLabel = (type) => {
     switch (type) {
       case 'TherapeuticIntervention': return 'Terapéutica';
@@ -265,10 +443,28 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     }
   };
 
-  // ── Table data for right panel preview ────────────────────────────────────
+  /**
+   * @brief Maximum number of characters before truncation in the preview table cells.
+   * @type {number}
+   */
   const MAX_CHARS = 21;
+
+  /**
+   * @brief Truncates a string to `max` characters, appending an ellipsis if needed.
+   * @param {string} text - Input string.
+   * @param {number} [max=MAX_CHARS] - Maximum allowed length.
+   * @returns {string} Truncated string.
+   */
   const truncate = (text, max = MAX_CHARS) => text.length > max ? `${text.slice(0, max)}…` : text;
 
+  /**
+   * @brief Builds the flat row array used by the live preview table.
+   *
+   * Starts with the four general rows then appends rows for each cost, utility, 
+   * sensitivity, specificity, and effect entry.
+   *
+   * @type {Array<{category: string, property: string, value: string}>}
+   */
   const tableData = [
     { category: 'General', property: 'Nombre', value: formData.label || '-' },
     { category: 'General', property: 'Tipo', value: typeLabel(formData.interventionType) },
@@ -307,6 +503,11 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     );
   });
 
+  /**
+   * @brief Returns a Tailwind CSS class string for the category badge in the preview table.
+   * @param {string} cat - Category name ('General', 'Costes', 'Utilidades', 'Sensibilidad', 'Efectos', or custom).
+   * @returns {string} Tailwind background and text color classes.
+   */
   const categoryColor = (cat) => {
     switch (cat) {
       case 'General':     return 'bg-slate-200 text-slate-600';
@@ -318,7 +519,6 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
     }
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
@@ -334,7 +534,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left Panel: Intervention Form */}
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -434,7 +634,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
               ))}
             </SectionCard>
 
-            {/* Sensitivities — solo para cribado/diagnóstico */}
+            {/* Sensitivities and Specificities, only for screening/diagnosis interventions */}
             {(formData.interventionType === 'ScreeningIntervention' || formData.interventionType === 'DiagnosisIntervention') && (
               <>
                 <SectionCard icon={<ShieldCheck className="w-4 h-4 text-rose-700" />}
@@ -488,10 +688,11 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
           </div>
         </div>
 
-        {/* ══ RIGHT PANEL: Preview table ══════════════════════════════════════ */}
+        {/* Right Panel: Preview Table */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-rose-500 overflow-hidden">
 
+            {/* Header */}
             <div className="p-8 bg-linear-to-r from-rose-50 to-white shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
@@ -510,6 +711,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
               </div>
             </div>
 
+            {/* Content */}
             <div className="flex-1 overflow-y-auto px-8 pt-6 custom-scrollbar">
               <div className="space-y-2 pb-4">
                 <div className="grid grid-cols-12 px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -533,6 +735,7 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
               </div>
             </div>
 
+            {/* Footer note */}
             <div className="px-8 py-4 bg-linear-to-r from-white to-rose-50 shrink-0">
               <p className="text-[10px] text-rose-600 font-medium text-center tracking-widest italic">
                 Esta tabla muestra una vista previa de los campos de la intervención y sus efectos asociados.
@@ -542,242 +745,13 @@ function InterventionsPage({ onNavigate, currentPage, diseaseData, diseases = []
         </div>
       </div>
 
-      <style jsx>{`
+      {/* Custom scrollbar */}
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(225, 29, 72, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(190, 18, 60, 0.5); }
       `}</style>
-    </div>
-  );
-}
-
-
-// ── Section wrapper ───────────────────────────────────────────────────────────
-function SectionCard({ icon, title, badge, onAdd, addLabel, children }) {
-  return (
-    <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-rose-100 rounded-lg">{icon}</div>
-          <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-100 rounded-full border border-rose-200">
-          <div className="w-2 h-2 bg-rose-600 rounded-full" />
-          <span className="text-xs font-bold text-rose-700">{badge}</span>
-        </div>
-      </div>
-      <div className="space-y-3">
-        {children}
-        <button type="button" onClick={onAdd}
-          className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-linear-to-r from-rose-50 to-white hover:from-rose-100 hover:to-rose-50 border-2 border-dashed border-rose-300 hover:border-rose-400 rounded-2xl transition-all group">
-          <div className="p-2 bg-rose-100 group-hover:bg-rose-200 rounded-lg transition-colors">
-            <Plus className="w-4 h-4 text-rose-600" />
-          </div>
-          <span className="text-sm font-bold text-rose-700">{addLabel}</span>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-
-// ── Effect card ───────────────────────────────────────────────────────────────
-function EffectCard({ effectData, index, onUpdate, onDelete, canDelete, isExpanded, onToggleExpand, progressionElements = [] }) {
-  const handleChange = useCallback((e) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    onUpdate(index, { ...effectData, [e.target.name]: value });
-  }, [onUpdate, index, effectData]);
-
-  const handleDelete = useCallback((e) => {
-    e.stopPropagation();
-    onDelete(index);
-  }, [onDelete, index]);
-
-  const toggleTarget = (label) => {
-    const targets = effectData.modifiesTargets || [];
-    const next = targets.includes(label)
-      ? targets.filter(x => x !== label)
-      : [...targets, label];
-    onUpdate(index, { ...effectData, modifiesTargets: next });
-  };
-
-  const addManualTarget = () => {
-    const val = effectData._modifiesInput?.trim();
-    if (!val || (effectData.modifiesTargets || []).includes(val)) {
-      onUpdate(index, { ...effectData, _modifiesInput: '' });
-      return;
-    }
-    onUpdate(index, { ...effectData, modifiesTargets: [...(effectData.modifiesTargets || []), val], _modifiesInput: '' });
-  };
-
-  const removeTarget = (t) => {
-    onUpdate(index, { ...effectData, modifiesTargets: effectData.modifiesTargets.filter(x => x !== t) });
-  };
-
-  const handleKeyDown = (e) => { if (e.key === 'Enter') { e.preventDefault(); addManualTarget(); } };
-
-  const isStochastic = effectData.parameterType === 'Stochastic';
-
-  return (
-    <div className="bg-slate-50 backdrop-blur-sm rounded-2xl border-2 border-slate-200 overflow-hidden transition-all hover:border-slate-300 hover:shadow-md">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 cursor-pointer bg-linear-to-r from-slate-200/50 to-white" onClick={onToggleExpand}>
-        <div className="flex items-center gap-3 flex-1">
-          {isExpanded ? <ChevronDown className="w-5 h-5 text-slate-600" /> : <ChevronRight className="w-5 h-5 text-slate-600" />}
-          <div className="p-2 bg-slate-100 rounded-lg">
-            <Zap className="w-4 h-4 text-slate-700" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-sm font-bold text-slate-800">{effectData.name || `Efecto ${index + 1}`}</h3>
-            <p className="text-xs text-slate-500">
-              {effectData.value ? effectData.value : 'Sin definir'} • {isStochastic ? 'Estocástico' : 'Determinístico'}
-              {effectData.modifiesTargets?.length > 0 && ` • modifica ${effectData.modifiesTargets.length} parámetro${effectData.modifiesTargets.length !== 1 ? 's' : ''}`}
-            </p>
-          </div>
-        </div>
-        {canDelete && (
-          <button type="button" onClick={handleDelete} className="p-2 hover:bg-slate-100 rounded-lg transition-colors group">
-            <Trash2 className="w-4 h-4 text-slate-400 group-hover:text-slate-700" />
-          </button>
-        )}
-      </div>
-
-      {/* Expanded content */}
-      {isExpanded && (
-        <div className="p-6 pt-4 space-y-4 border-t border-slate-100 bg-white/40">
-
-          {/* Name */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre del Efecto</label>
-            <input type="text" name="name" value={effectData.name} onChange={handleChange}
-              placeholder="ej: Reducción de mortalidad a 5 años"
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
-          </div>
-
-          {/* Mode toggle */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo de Configuración</label>
-            <ToggleButton
-              value={isStochastic}
-              onChange={(e) => handleChange({ target: { name: 'parameterType', value: e.target.value ? 'Stochastic' : 'Deterministic' } })}
-              option1="Simple (Determinístico)" option2="Avanzado (Estocástico)" name="parameterType" />
-          </div>
-
-          {/* Deterministic fields */}
-          {!isStochastic && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor Esperado</label>
-                <input type="number" step="0.0001" name="value" value={effectData.value} onChange={handleChange}
-                  placeholder="0.0"
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo OSDi</label>
-                <select name="effectType" value={effectData.effectType} onChange={handleChange}
-                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all">
-                  <option value="DI_Continuous_Variable">Variable Continua</option>
-                  <option value="DI_Probability">Probabilidad</option>
-                  <option value="DI_RelativeRisk">Riesgo Relativo</option>
-                  <option value="DI_MeanDifference">Diferencia de Medias</option>
-                  <option value="DI_Factor">Factor</option>
-                </select>
-              </div>
-            </div>
-          )}
-
-          {/* Stochastic fields */}
-          {isStochastic && (
-            <>
-              <StochasticConfig data={effectData} onChange={handleChange} />
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Valor Esperado</label>
-                  <input type="number" step="0.0001" name="value" value={effectData.value} onChange={handleChange}
-                    placeholder="0.0"
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo OSDi</label>
-                  <select name="effectType" value={effectData.effectType} onChange={handleChange}
-                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all">
-                    <option value="DI_Continuous_Variable">Variable Continua</option>
-                    <option value="DI_Probability">Probabilidad</option>
-                    <option value="DI_RelativeRisk">Riesgo Relativo</option>
-                    <option value="DI_MeanDifference">Diferencia de Medias</option>
-                    <option value="DI_Factor">Factor</option>
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Description */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Descripción</label>
-            <textarea name="description" value={effectData.description} onChange={handleChange}
-              placeholder="ej: Reduce a 0 la probabilidad de manifestaciones agudas" rows="2"
-              className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all resize-none" />
-          </div>
-
-          {/* modifies targets */}
-          <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Manifestaciones que modifica</label>
-
-            {/* Picker from progression elements */}
-            {progressionElements.length > 0 ? (
-              <div className="space-y-2">
-                <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                  {progressionElements.map(({ label, type }) => {
-                    const selected = (effectData.modifiesTargets || []).includes(label);
-                    const typeColor = {
-                      AcuteManifestation:    'bg-orange-100 text-orange-700',
-                      ChronicManifestation:  'bg-blue-100 text-blue-700',
-                      Development:           'bg-indigo-100 text-indigo-700',
-                      Stage:                 'bg-violet-100 text-violet-700',
-                    }[type] || 'bg-slate-100 text-slate-600';
-                    return (
-                      <button key={label} type="button" onClick={() => toggleTarget(label)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm transition-all text-left border ${
-                          selected
-                            ? 'bg-rose-50 border-rose-400 shadow-sm'
-                            : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}>
-                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${
-                          selected ? 'bg-rose-500 border-rose-500' : 'border-slate-300'
-                        }`}>
-                          {selected && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                        </div>
-                        <span className={`flex-1 font-medium truncate ${selected ? 'text-rose-800' : 'text-slate-700'}`}>{label}</span>
-                        <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full shrink-0 ${typeColor}`}>{type.replace('Manifestation', '')}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {effectData.modifiesTargets?.length > 0 && (
-                  <p className="text-[10px] text-rose-600 font-bold ml-1">
-                    {effectData.modifiesTargets.length} seleccionada{effectData.modifiesTargets.length !== 1 ? 's' : ''}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <input type="text" name="_modifiesInput" value={effectData._modifiesInput} onChange={handleChange} onKeyDown={handleKeyDown}
-                    placeholder="ej: Pérdida de visibilidad"
-                    className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-500/5 outline-none transition-all" />
-                  <button type="button" onClick={addManualTarget}
-                    className="px-3 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition-colors">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <p className="text-[10px] text-slate-400 ml-1">Crea manifestaciones en la página de Progresión para poder seleccionarlas aquí.</p>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

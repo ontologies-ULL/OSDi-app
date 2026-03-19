@@ -1,16 +1,50 @@
+/**
+ * @file CostCard.jsx
+ * @brief Expandable card component for a single intervention cost parameter.
+ *
+ * Renders a collapsible row showing the cost name, value, and mode in its
+ * collapsed header. When expanded it shows fields for:
+ * - Name, configuration mode (deterministic / stochastic).
+ * - Cost value and currency (both modes).
+ * - Year of reference and payment type (annual vs. one-time).
+ * - Bibliographic source.
+ *
+ * @module components/CostCard
+ */
+
 import { useCallback } from 'react';
 import { DollarSign, ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import ToggleButton from './ToggleButton';
 import { StochasticConfig } from './AdvancedParameterComponent';
 
+/** @brief Current calendar year used as the default value for the year field. */
 const CURRENT_YEAR = new Date().getFullYear();
 
+/**
+ * @brief Expandable card for a single intervention cost entry.
+ *
+ * @param {Object}   props.costData        - Current state of the cost entry.
+ * @param {number}   props.index           - Position index within the costs list.
+ * @param {Function} props.onUpdate        - Callback `(index, updatedCost)` called on any field change.
+ * @param {Function} props.onDelete        - Callback `(index)` called when the delete button is clicked.
+ * @param {boolean}  props.canDelete       - Whether the delete button should be rendered.
+ * @param {boolean}  props.isExpanded      - Whether the card body is currently expanded.
+ * @param {Function} props.onToggleExpand  - Callback to toggle the expanded state.
+ *
+ * @returns {JSX.Element} The rendered cost card.
+ */
 const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, onToggleExpand }) => {
+  /** 
+   * @brief Memoized field change handler that normalises checkbox values. 
+   */
   const handleChange = useCallback((e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     onUpdate(index, { ...costData, [e.target.name]: value });
   }, [onUpdate, index, costData]);
 
+  /** 
+   * @brief Memoized delete handler that stops event propagation to avoid toggling the card. 
+   */
   const handleDelete = useCallback((e) => {
     e.stopPropagation();
     onDelete(index);
@@ -18,7 +52,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
 
   return (
     <div className="bg-slate-50 backdrop-blur-sm rounded-2xl border-2 border-slate-200 overflow-hidden transition-all hover:border-slate-300 hover:shadow-md">
-      {/* Header colapsable */}
+      {/* Collapsible header */}
       <div
         className="flex items-center justify-between p-4 cursor-pointer bg-linear-to-r from-slate-200/50 to-white"
         onClick={onToggleExpand}
@@ -52,10 +86,10 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
         )}
       </div>
 
-      {/* Contenido colapsable */}
+      {/* Expanded content */}
       {isExpanded && (
         <div className="p-6 pt-4 space-y-4 border-t border-slate-100 bg-white/40">
-          {/* Nombre identificativo */}
+          {/* Name */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre del Coste</label>
             <input
@@ -68,7 +102,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
             />
           </div>
 
-          {/* TOGGLE: Simple vs Avanzado */}
+          {/* Mode toggle */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo de Configuración</label>
             <ToggleButton
@@ -82,7 +116,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
             />
           </div>
 
-          {/* Campos específicos por modo */}
+          {/* Deterministic fields */}
           {costData.parameterType === 'Deterministic' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -113,6 +147,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
             </div>
           )}
 
+          {/* Stochastic fields */}
           {costData.parameterType === 'Stochastic' && (
             <>
               <StochasticConfig data={costData} onChange={handleChange} />
@@ -146,7 +181,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
             </>
           )}
 
-          {/* Campos compartidos entre ambos modos */}
+          {/* Shared fields: year and payment type */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Año</label>
@@ -171,6 +206,7 @@ const CostCard = ({ costData, index, onUpdate, onDelete, canDelete, isExpanded, 
             </div>
           </div>
 
+          {/* Source */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Fuente</label>
             <input

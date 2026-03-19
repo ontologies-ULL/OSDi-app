@@ -1,32 +1,95 @@
+/**
+ * @file StagePage.jsx
+ * @brief Stage editor.
+ *
+ * Allows the user to define `Stage` OWL individuals representing phases of disease
+ * progression . Optionally each stage can also be classed as `OrderedModelItem` to 
+ * participate in a `SequentialCombinationRule`, chaining stages via the `hasNext` object property.
+ *
+ * Manifestations specific to a stage are linked via the `hasSubProgression` object property.
+ *
+ * This page also contains the **final save button** that persists the complete `Disease`
+ * individual to the backend, linking all progression elements via `hasDiseaseProgression`.
+ *
+ * Items are persisted via {@link createIndividual}. Shared state (`stages`, `setStages`)
+ * comes from `App.jsx` and persists across navigation.
+ *
+ * @module StagePage
+ */
+
 import React, { useState } from 'react';
-import { AlertCircle, CheckCircle, Layers, Plus, Trash2, ChevronDown, ChevronUp, Save, GitBranch } from 'lucide-react';
+import { AlertCircle, CheckCircle, Layers, Plus, Trash2, ChevronDown, ChevronUp, Save, GitBranch, ArrowRight } from 'lucide-react';
 import DiseaseTabs from '../components/DiseaseTabs';
 import useSaveStatus from '../hooks/useSaveStatus';
 import { createIndividual } from '../api/ontology';
 import OntologyFlowGraph from '../components/OntologyFlowGraph';
 
-// A Stage can optionally be an OrderedModelItem (for use in SequentialCombinationRule)
+/**
+ * Default state for the stage creation form.
+ * @constant {{ label: string, description: string, isOrdered: boolean, hasNext: string, subProgressions: string[] }}
+ * @property {boolean} isOrdered          - Whether to add `OrderedModelItem` to OWL classes.
+ * @property {string}  hasNext            - Label of the next stage in the sequence.
+ * @property {string[]} subProgressions   - Labels of progression elements linked via `hasSubProgression`.
+ */
 const EMPTY_STAGE = {
   label: '',
   description: '',
-  isOrdered: false,    // whether to also class it as OrderedModelItem
-  hasNext: '',         // next stage in the linked list (only if isOrdered)
-  subProgressions: [], // manifestations that belong specifically to this stage (hasSubProgression)
+  isOrdered: false,
+  hasNext: '',
+  subProgressions: [],
 };
 
-// Props: stages and setStages come from App.jsx (persisted across navigation)
+/**
+ * @component StagePage
+ * @description Two-column editor for `Stage` OWL individuals.
+ *
+ * **Left panel**:
+ * - Label and description fields.
+ * - A multi-select checklist of available progression elements linked via `hasSubProgression`.
+ * - An `OrderedModelItem` toggle that reveals a `hasNext` selector when active.
+ * - A scrollable list of created stages with expand/delete controls.
+ * - The final "Save Disease" button that creates the `Disease` individual in the ontology.
+ *
+ * **Right panel**: Ontology Graph.
+ *
+ * Two independent {@link useSaveStatus} instances are used: one for stage saves,
+ * one for the disease save (toasts rendered at different vertical offsets).
+ *
+ * @param {Function} props.onNavigate                  - Top-level navigation callback.
+ * @param {string}   [props.currentPage='stage']       - Active page key.
+ * @param {Object}   props.diseaseData                 - Disease identity from App.jsx.
+ * @param {import('../App').ProgressionElement[]} [props.progressionElements=[]]
+ *   - Combined manifestations + rules available for `hasSubProgression` linking.
+ * @param {import('../App').Stage[]} props.stages      - Shared stages array from App.
+ * @param {Function} props.setStages                   - Setter for the shared stages array.
+ * @param {Object[]} [props.graphNodes=[]]             - React Flow nodes for the right-panel graph.
+ * @param {Object[]} [props.graphEdges=[]]             - React Flow edges for the right-panel graph.
+ * @param {Function} [props.onSaveDiseaseSnapshot]     - Callback invoked after a successful disease save (receives `diseaseData`).
+ * @returns {JSX.Element}
+ */
 function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progressionElements = [], stages, setStages, graphNodes = [], graphEdges = [], onSaveDiseaseSnapshot }) {
   const [form, setForm] = useState({ ...EMPTY_STAGE });
   const [expandedStages, setExpandedStages] = useState([]);
 
+  // Save status for individual stage creation.
   const { saving, success, error, withSave } = useSaveStatus();
+  // Save status for the final disease-level save.
   const { saving: savingDisease, success: successDisease, error: errorDisease, withSave: withSaveDisease } = useSaveStatus();
 
+  /**
+   * Generic change handler for stage form inputs.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>} e
+   */
   const handleInputChange = (e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     setForm(prev => ({ ...prev, [e.target.name]: value }));
   };
 
+  /**
+   * Toggles a progression element label in `form.subProgressions`.
+   * Drives the `hasSubProgression` object properties sent to the backend.
+   * @param {string} label - Label of the progression element to toggle.
+   */
   const toggleSubProgression = (label) => {
     setForm(prev => ({
       ...prev,
@@ -36,6 +99,15 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
     }));
   };
 
+  /**
+   * Persists the current `form` as a `Stage` OWL individual and appends it to the shared `stages` array.
+   *
+   * Object properties assembled:
+   * - `hasSubProgression` for each linked progression element.
+   * - `hasNext` if `isOrdered` is true and a next stage is selected.
+   *
+   * Guards against empty label.
+   */
   const handleSave = () => {
     if (!form.label) return;
     withSave(async () => {
@@ -64,10 +136,22 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
     });
   };
 
+  /**
+   * Removes a stage from the shared array by index.
+   * @param {number} index - Position in the `stages` array to remove.
+   */
   const handleDelete = (index) => {
     setStages(prev => prev.filter((_, i) => i !== index));
   };
 
+  /**
+   * Final step: persists the `Disease` OWL individual to the backend, linking
+   * all progression elements via `hasDiseaseProgression`, and all cross-reference
+   * datatype properties.
+   *
+   * Calls `onSaveDiseaseSnapshot` afterwards so `App.jsx` can record the snapshot.
+   * Guards against missing `diseaseData.label`.
+   */
   const handleSaveDisease = () => {
     if (!diseaseData?.label) return;
     withSaveDisease(async () => {
@@ -94,6 +178,12 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
     });
   };
 
+  /**
+   * Returns a display label and Tailwind colour classes for a given OWL class name.
+   * Used to render type badges in the sub-progression checklist and stage list.
+   * @param {string} type - OWL class identifier.
+   * @returns {{ text: string, cls: string }}
+   */
   const typeLabel = (type) => {
     if (type === 'AcuteManifestation') return { text: 'Manifestación Aguda', cls: 'bg-yellow-100 text-yellow-800' };
     if (type === 'ChronicManifestation') return { text: 'Manifestación Crónica', cls: 'bg-amber-100 text-amber-800' };
@@ -105,13 +195,17 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
     return { text: type, cls: 'bg-gray-100 text-gray-700' };
   };
 
-  // Stages already created are available as "next" candidates
+  /**
+   * Stages already saved, excluding the one currently being edited.
+   * Shown in the `hasNext` selector when `isOrdered` is active.
+   * @type {import('../App').Stage[]}
+   */
   const availableAsNext = stages.filter(s => s.label !== form.label);
 
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Floating messages — stage */}
+      {/* Save result toast */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'}`}>
@@ -120,7 +214,7 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
           </div>
         </div>
       )}
-      {/* Floating messages — disease */}
+      {/* Save result toast */}
       {(errorDisease || successDisease) && (
         <div className="fixed top-36 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${errorDisease ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-teal-500 text-teal-800'}`}>
@@ -132,7 +226,7 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left panel: Stage form */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -328,7 +422,7 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
               </div>
             )}
 
-            {/* ── Save Disease ────────────────────────────────────────────────── */}
+            {/* Save Disease */}
             <div className="pt-4 border-t-2 border-dashed border-emerald-300 space-y-3">
               <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest text-center">
                 Paso final — Guardar la enfermedad completa
@@ -389,7 +483,7 @@ function StagePage({ onNavigate, currentPage = 'stage', diseaseData, progression
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }

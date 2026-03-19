@@ -1,3 +1,14 @@
+/**
+ * @file App.jsx
+ * @brief Root component of the OSDi application.
+ *
+ * Manages global shared state for the active disease project
+ * and handles client-side page routing through a `currentPage`
+ * state variable. 
+ *
+ * @module App
+ */
+
 import React, { useState, useMemo } from 'react';
 import { buildFullGraph } from './utils/ontologyGraph';
 import HomePage from './pages/HomePage';
@@ -9,12 +20,32 @@ import DevelopmentPage from './pages/DevelopmentPage';
 import StagePage from './pages/StagePage';
 import Navbar from './components/Navbar';
 
+/**
+ * @component App
+ * @description Root application component. Owns all shared state and renders
+ * the active page together with the navigation bar.
+ * @returns {JSX.Element}
+ */
 function App() {
+  /** @type {[string, Function]} 
+   * Currently active page key. 
+   */
   const [currentPage, setCurrentPage] = useState('home');
+
+  /** @type {[Object|null, Function]} 
+   * Authenticated user object (null when logged out). 
+   */
   const [user, setUser] = useState(null);
+
+  /** @type {[string, Function]} 
+   * Display name of the disease currently being edited. 
+   */
   const [diseaseName, setDiseaseName] = useState('');
 
-  // ── Disease state ──────────────────────────────────────────────────────────
+  /**
+   * @type {[DiseaseData, Function]}
+   * Identity and ontology properties of the disease currently being edited.
+   */
   const [diseaseData, setDiseaseData] = useState({
     label: '',
     comment: '',
@@ -30,37 +61,76 @@ function App() {
     }
   });
 
-  // ── Disease sub-page lists (persisted across navigation) ──────────────────
-  const [manifestations, setManifestations] = useState([]);       // { label, description, type }
-  const [combinationRules, setCombinationRules] = useState([]);   // { label, description, ruleType, affectedProgressions, ... }
-  const [developments, setDevelopments] = useState([]);           // { label, description, linkedProgressions }
-  const [stages, setStages] = useState([]);                        // { label, description, isOrdered, hasNext, subProgressions }
+  /** @type {[Manifestation[], Function]} 
+   * Manifestations for the current disease. */
+  const [manifestations, setManifestations] = useState([]);
 
-  // ── Disease snapshots list ─────────────────────────────────────────────────
-  const [diseases, setDiseases] = useState([]);        // array of complete disease snapshots
+  /** @type {[CombinationRule[], Function]} 
+   * Combination rules for the current disease. 
+   */
+  const [combinationRules, setCombinationRules] = useState([]);
+
+  /** @type {[Development[], Function]} 
+   * Developments for the current disease. 
+   */
+  const [developments, setDevelopments] = useState([]);
+
+  /** @type {[Stage[], Function]} 
+   * Stages for the current disease. 
+   */
+  const [stages, setStages] = useState([]);
+
+  /** @type {[DiseaseSnapshot[], Function]} 
+   * List of all saved disease snapshots shown in the navbar dropdown. 
+   */
+  const [diseases, setDiseases] = useState([]);
+
+  /** @type {[number|null, Function]} 
+   * Index into `diseases` of the snapshot currently being edited, or null for a new disease. 
+   */
   const [editingDiseaseIndex, setEditingDiseaseIndex] = useState(null);
 
-  // ── Flat {label, type} lists used for cross-page references ───────────────
-  // Derived from the full lists above — keeps everything in sync
+  /**
+   * @type {ProgressionElement[]}
+   * Flat list of manifestations and combination rules for the current disease.
+   */
   const progressionElements = [
     ...manifestations.map(m => ({ label: m.label, type: m.type })),
     ...combinationRules.map(r => ({ label: r.label, type: r.ruleType })),
   ];
+
+  /** @type {ProgressionElement[]} 
+   * Development elements derived from the `developments` state. 
+   */
   const developmentElements = developments.map(d => ({ label: d.label, type: 'Development' }));
+
+  /** @type {ProgressionElement[]} 
+   * Stage elements derived from the `stages` state. 
+   */
   const stageElements = stages.map(s => ({ label: s.label, type: 'Stage' }));
 
+  /**
+   * @type {ProgressionElement[]}
+   * Combined list of all progression elements.
+   */
   const allProgressionElements = [...progressionElements, ...developmentElements, ...stageElements];
 
-  // ── Shared ontology graph (computed once, passed to all disease pages) ──────
+  /**
+   * React Flow nodes and edges for the full ontology graph of the current disease.
+   * Computed with `useMemo` so it is only recalculated when the underlying state changes.
+   */
   const { nodes: graphNodes, edges: graphEdges } = useMemo(
     () => buildFullGraph({ diseaseData, manifestations, combinationRules, developments, stages }),
     [diseaseData, manifestations, combinationRules, developments, stages]
   );
 
-  // ── Disease handlers ───────────────────────────────────────────────────────
+  /**
+   * Loads a saved disease snapshot into the editor state, or resets to a blank
+   * new disease when `index === -1`.
+   * @param {number} index - Index of the snapshot to load, or -1 to create a new disease.
+   */
   const handleSelectDisease = (index) => {
     if (index === -1) {
-      // Reset to empty new disease
       setDiseaseData({ label: '', comment: '', selectedSubtypes: [], selectedClasses: ['Disease'], datatypeProperties: [], objectProperties: [], references: { hasRefToDO: '', hasRefToICD: '', hasRefToOMIM: '', hasRefToSNOMED: '' } });
       setManifestations([]);
       setCombinationRules([]);
@@ -81,6 +151,11 @@ function App() {
     setCurrentPage('disease');
   };
 
+  /**
+   * Persists the current editor state as a disease snapshot.
+   * Updates the existing snapshot if one is being edited, otherwise appends a new one.
+   * @param {DiseaseData} freshDiseaseData - Latest disease identity data at the time of saving.
+   */
   const handleSaveDiseaseSnapshot = (freshDiseaseData) => {
     const snapshot = {
       diseaseData: freshDiseaseData,
@@ -99,25 +174,48 @@ function App() {
     }
   };
 
-  // ── Population state ───────────────────────────────────────────────────────
-  const [populations, setPopulations] = useState([]);  // array of saved population snapshots
-  const [populationToEdit, setPopulationToEdit] = useState(null); // index to auto-load on page mount
+  /** @type {[Object[], Function]} 
+   * List of all saved population individuals. 
+   */
+  const [populations, setPopulations] = useState([]);
 
-  // ── Interventions state ────────────────────────────────────────────────────
-  const [interventions, setInterventions] = useState([]);  // array of saved intervention snapshots
-  const [interventionToEdit, setInterventionToEdit] = useState(null); // index to auto-load on page mount
+  /** @type {[number|null, Function]} 
+   * Index of the population currently being edited, or null. 
+   */
+  const [populationToEdit, setPopulationToEdit] = useState(null);
 
-  // ── Reset all project state (called when returning to home) ───────────────
+  /** @type {[Object[], Function]} 
+   * List of all saved intervention individuals. 
+   */
+  const [interventions, setInterventions] = useState([]);
+
+  /** @type {[number|null, Function]} 
+   * Index of the intervention currently being edited, or null. 
+   */
+  const [interventionToEdit, setInterventionToEdit] = useState(null);
+
+  /**
+   * Navigates to a population entry in edit mode.
+   * @param {number} index - Index into the `populations` array.
+   */
   const handleSelectPopulation = (index) => {
-    setPopulationToEdit(index); // -1 = reset to new form, >= 0 = load existing
+    setPopulationToEdit(index);
     setCurrentPage('population');
   };
 
+  /**
+   * Navigates to an intervention entry in edit mode.
+   * @param {number} index - Index into the `interventions` array.
+   */
   const handleSelectIntervention = (index) => {
-    setInterventionToEdit(index); // -1 = reset to new form, >= 0 = load existing
+    setInterventionToEdit(index);
     setCurrentPage('interventions');
   };
 
+  /**
+   * Resets all disease-related state to initial empty values.
+   * Called when navigating back to the home page or on logout.
+   */
   const resetProjectState = () => {
     setDiseaseName('');
     setDiseaseData({
@@ -135,11 +233,18 @@ function App() {
     setInterventions([]);
   };
 
+  /**
+   * Top-level navigation handler. Resets project state when navigating to home.
+   * @param {string} page - Target page key.
+   */
   const handleNavigate = (page) => {
     if (page === 'home') resetProjectState();
     setCurrentPage(page);
   };
 
+  /**
+   * Clears the authenticated user, resets project state and navigates home.
+   */
   const handleLogout = () => {
     localStorage.removeItem('user');
     setUser(null);
@@ -147,6 +252,11 @@ function App() {
     setCurrentPage('home');
   };
 
+  /**
+   * Selects and returns the JSX tree for the currently active page.
+   * Each page receives only the slice of state it needs.
+   * @returns {JSX.Element}
+   */
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
@@ -235,7 +345,6 @@ function App() {
             diseaseData={diseaseData}
             diseases={diseases}
             progressionElements={allProgressionElements}
-
             interventions={interventions}
             setInterventions={setInterventions}
             interventionToEdit={interventionToEdit}

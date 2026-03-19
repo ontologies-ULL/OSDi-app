@@ -1,22 +1,48 @@
 /**
- * buildFullGraph — computes ReactFlow nodes and edges for the full OSDi disease model.
+ * @file ontologyGraph.js
+ * @brief Utility that converts OSDi disease-model data into ReactFlow nodes and edges.
  *
- * Layout (top-down, row per entity type):
- *   Row 0 : Disease
- *   Row 1 : Independent manifestations (not linked to any dev / stage)
- *   Row 2 : Developments  (linked manifestations embedded inside the node)
- *   Row 3 : Stages        (sub-progressions embedded inside the node)
+ * Produces a top-down layered graph with one row per entity type:
+ * - Row 0 : Disease node (when a label is available).
+ * - Row 1 : Independent manifestations (not embedded in any Development or Stage).
+ * - Row 2 : Development nodes (with linked manifestations embedded inside the node).
+ * - Row 3 : Stage nodes (with sub-progression elements embedded inside the node).
  *
- * Combination rules are intentionally NOT rendered in the graph.
+ * Combination rules are intentionally **not** rendered.
  *
- * Edge palette:
- *   green (#10b981)  Disease → any top-level element
- *   cyan  (#06b6d4)  Stage → next Stage  hasNext  (dashed)
+ * @module utils/ontologyGraph
+ */
+
+/**
+ * @brief Builds a complete ReactFlow graph for the OSDi disease model.
+ *
+ * Rows are populated only when they contain at least one item. All rows are
+ * centred horizontally relative to the widest row. Stages that are only
+ * reachable via `hasNext` from another Stage are not given a direct edge from
+ * the Disease node — they are connected through the dashed `hasNext` edge
+ * instead.
+ *
+ * @param {Object}   params                                 - Input data for the graph.
+ * @param {Object}   params.diseaseData                     - Disease identity object.
+ * @param {string}   params.diseaseData.label               - IRI label of the disease individual.
+ * @param {string}   [params.diseaseData.comment]           - Optional free-text description (truncated to 65 chars).
+ * @param {string[]} [params.diseaseData.selectedSubtypes]  - Array of OWL subtype class names (e.g. `"RareDisease"`).
+ * @param {Array<{label: string, type: string, description?: string}>} [params.manifestations=[]]
+ *   All manifestation objects (`AcuteManifestation` / `ChronicManifestation`).
+ * @param {Array<{label: string, description?: string, linkedProgressions?: string[]}>} [params.developments=[]]
+ *   Development objects; `linkedProgressions` lists embedded manifestation labels.
+ * @param {Array<{label: string, description?: string, subProgressions?: string[], isOrdered?: boolean, hasNext?: string}>} [params.stages=[]]
+ *   Stage objects; `subProgressions` lists embedded manifestation labels.
+ *   When `isOrdered` is `true` and `hasNext` is set, a dashed edge is created
+ *   to the next Stage.
+ *
+ * @returns {{ nodes: Object[], edges: Object[] }}
+ *   Plain ReactFlow-compatible node and edge arrays ready to be passed to a
+ *   `<ReactFlow>` component.
  */
 export function buildFullGraph({
   diseaseData,
   manifestations = [],
-  combinationRules = [],   // kept for API compat, not rendered
   developments = [],
   stages = [],
 }) {
@@ -25,10 +51,16 @@ export function buildFullGraph({
 
   const hasDisease = Boolean(diseaseData?.label);
 
+  /** 
+   * @brief Horizontal spacing (px) between sibling nodes in the same row. 
+   */
   const STEP_X = 250;
+  /** 
+   * @brief Vertical spacing (px) between rows. 
+   */
   const STEP_Y = 220;
 
-  // Manifestations embedded inside a Development or Stage — no separate node created
+  // Manifestations embedded inside a Development or Stage
   const embeddedInDev   = new Set(developments.flatMap(d => d.linkedProgressions || []));
   const embeddedInStage = new Set(stages.flatMap(s => s.subProgressions || []));
   const allEmbedded     = new Set([...embeddedInDev, ...embeddedInStage]);
@@ -39,7 +71,7 @@ export function buildFullGraph({
   // Stages that are 'hasNext' targets → not directly connected to Disease
   const isNextStage = new Set(stages.map(s => s.hasNext).filter(Boolean));
 
-  // ── Build row groups (skip empty) ────────────────────────────────────────────
+  // Build row groups (skip empty)
   const groups = [
     independentManifs.length > 0 ? { tag: 'manif', items: independentManifs }  : null,
     developments.length       > 0 ? { tag: 'dev',   items: developments }       : null,
@@ -52,13 +84,19 @@ export function buildFullGraph({
   const maxItems  = Math.max(1, ...groups.map(g => g.items.length));
   const totalWidth = (maxItems - 1) * STEP_X;
 
+  /**
+   * @brief Computes the centred horizontal position for item `i` in a row of `n` items.
+   * @param {number} n - Total number of items in the row.
+   * @param {number} i - Zero-based index of the item within the row.
+   * @returns {number} The x coordinate (in pixels) for the node.
+   */
   const xFor = (n, i) => {
     const rowWidth = (n - 1) * STEP_X;
     const startX   = (totalWidth - rowWidth) / 2;
     return startX + i * STEP_X;
   };
 
-  // ── Disease node (only when label is set) ───────────────────────────────────
+  // Disease node (only if label is available)
   if (hasDisease) {
     const subtypePart = diseaseData.selectedSubtypes?.length > 0
       ? diseaseData.selectedSubtypes.map(s => s.replace('Disease', '')).join(' · ')
@@ -79,7 +117,6 @@ export function buildFullGraph({
     });
   }
 
-  // ── Entity rows ──────────────────────────────────────────────────────────────
   // When there is no disease node, rows start at y=0; otherwise they start at STEP_Y
   const rowOffset = hasDisease ? 1 : 0;
   groups.forEach(({ tag, items }, rowIdx) => {
@@ -138,7 +175,7 @@ export function buildFullGraph({
     });
   });
 
-  // ── Stage hasNext edges (ordered chains) ─────────────────────────────────────
+  // Stage → next Stage edges (dashed)
   stages.forEach(s => {
     if (s.isOrdered && s.hasNext) {
       edges.push({

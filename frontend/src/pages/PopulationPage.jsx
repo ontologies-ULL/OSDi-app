@@ -1,3 +1,13 @@
+/**
+ * @file PopulationPage.jsx
+ * @brief Page for defining the affected population in the OSDi model.
+ *
+ * Allows the user to create and edit `Population` individuals in the OSDi
+ * ontology, together with all their associated parameters, and user-defined custom attributes.
+ *
+ * @module pages/PopulationPage
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Book, Save, AlertCircle, CheckCircle, Users, ShieldCheck, Table as TableIcon, Plus, Trash2, Pencil } from 'lucide-react';
 import ToggleButton from '../components/ToggleButton';
@@ -8,13 +18,47 @@ import useCustomAttributes from '../hooks/useCustomAttributes';
 import { createIndividual, createStochasticParameter } from '../api/ontology';
 import EpidemiologicalParameterCard from '../components/EpidemiologicalParameterCard';
 
-// ── Empty templates ────────────────────────────────────────────────────────────
+/**
+ * @brief Initial empty state for the general population form.
+ * @property {string} label             - Local IRI name of the ontology individual.
+ * @property {string} comment           - Free-text description of the population.
+ * @property {string} associatedDisease - Label of the associated disease (only used when there is more than one disease).
+ */
 const EMPTY_FORM = { label: '', comment: '', associatedDisease: '' };
 
+/**
+ * @brief Initial empty state for the demographics section.
+ * @property {string} age                 - Mean age of the population (years).
+ * @property {string} minAge              - Minimum age bound (years).
+ * @property {string} maxAge              - Maximum age bound (years).
+ * @property {string} geographicLocation  - Geographic context (e.g. "Spain @wikidata").
+ * @property {string} populationSize      - Total size of the population.
+ */
 const EMPTY_DEMOGRAPHICS = {
   age: '', minAge: '', maxAge: '', geographicLocation: '', populationSize: ''
 };
 
+/**
+ * @brief Initial empty state for the female proportion parameter.
+ *
+ * Supports both deterministic and second-order stochastic modes.
+ * Distribution parameters are only used when `isStochastic` is true.
+ *
+ * @property {boolean} isStochastic       - Whether a probability distribution is used.
+ * @property {string}  femaleProportion   - Point estimate of the female proportion [0-1].
+ * @property {string}  source             - Bibliographic source of the data.
+ * @property {string}  comment            - Additional notes.
+ * @property {string}  distributionType   - Distribution family (default: 'Beta').
+ * @property {string}  mean               - Distribution mean.
+ * @property {string}  standardDeviation  - Distribution standard deviation.
+ * @property {string}  lowerBound         - Lower bound of the distribution.
+ * @property {string}  upperBound         - Upper bound of the distribution.
+ * @property {string}  alpha              - Alpha shape parameter (Beta / Gamma).
+ * @property {string}  beta               - Beta shape parameter (Beta / Gamma).
+ * @property {string}  lambda             - Rate parameter (Poisson / Exponential).
+ * @property {string}  confidenceInterval - Confidence interval width (default: '95').
+ * @property {string}  sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_SEX = {
   isStochastic: false, femaleProportion: '', source: '', comment: '',
   distributionType: 'Beta', mean: '', standardDeviation: '',
@@ -22,12 +66,55 @@ const EMPTY_SEX = {
   confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief Initial empty state for the life expectancy parameter.
+ *
+ * Mirrors the structure of EMPTY_SEX but uses a Normal distribution by
+ * default and exposes a generic `value` field instead of `femaleProportion`.
+ *
+ * @property {boolean} isStochastic       - Whether a probability distribution is used.
+ * @property {string}  value              - Point estimate of life expectancy (years).
+ * @property {string}  source             - Bibliographic source of the data.
+ * @property {string}  distributionType   - Distribution family (default: 'Normal').
+ * @property {string}  mean               - Distribution mean.
+ * @property {string}  standardDeviation  - Distribution standard deviation.
+ * @property {string}  lowerBound         - Lower bound of the distribution.
+ * @property {string}  upperBound         - Upper bound of the distribution.
+ * @property {string}  alpha              - Alpha shape parameter.
+ * @property {string}  beta               - Beta shape parameter.
+ * @property {string}  lambda             - Rate parameter.
+ * @property {string}  confidenceInterval - Confidence interval width (default: '95').
+ * @property {string}  sampleSize         - Sample size used to estimate the parameter.
+ */
 const EMPTY_LIFE_EXPECTANCY = {
   isStochastic: false, value: '', source: '', distributionType: 'Normal',
   mean: '', standardDeviation: '', lowerBound: '', upperBound: '',
   alpha: '', beta: '', lambda: '', confidenceInterval: '95', sampleSize: ''
 };
 
+/**
+ * @brief React page component for creating and editing Population individuals.
+ *
+ * Renders a two-column layout:
+ * - **Left panel** — form with sections for general info, demographics, sex,
+ *   life expectancy, epidemiological parameters, and custom attributes.
+ * - **Right panel** — live preview table that reflects the current form values.
+ *
+ * On save, the component sequentially calls the ontology API to persist each
+ * sub-parameter as a separate individual, then creates the main `Population`
+ * individual linking all of them via object properties.
+ *
+ * @param {Function}  props.onNavigate                - Callback to navigate to another page.
+ * @param {string}    props.currentPage               - Identifier of the active page.
+ * @param {Object}    props.diseaseData               - Global disease data (fallback when no disease list).
+ * @param {Array}     props.diseases                  - Array of all saved disease snapshots.
+ * @param {Array}     props.populations               - Array of all saved population snapshots.
+ * @param {Function}  props.setPopulations            - State setter for the populations array.
+ * @param {number|null} props.populationToEdit        - Index of the population to load for editing, or -1 to reset the form, or null for no-op.
+ * @param {Function}  props.onPopulationToEditHandled - Callback to acknowledge the edit request.
+ *
+ * @returns {JSX.Element} The rendered population page.
+ */
 function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], populations, setPopulations, populationToEdit, onPopulationToEditHandled }) {
   const [formData, setFormData] = useState({ ...EMPTY_FORM });
   const [demographics, setDemographics] = useState({ ...EMPTY_DEMOGRAPHICS });
@@ -40,16 +127,28 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
   const [editingIndex, setEditingIndex] = useState(null);
   const { saving, success, error, withSave } = useSaveStatus();
 
+  /** @brief Generic change handler for the general form fields. */
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  /** @brief Generic change handler for the demographics fields. */
   const handleDemographicsChange = (e) => setDemographics({ ...demographics, [e.target.name]: e.target.value });
 
-  // Effective disease label: auto if only 1 disease, selector if > 1, fallback to global diseaseData
+  /**
+   * @brief Resolves which disease label to associate with the population.
+   *
+   * - Single disease: uses the only available disease label automatically.
+   * - Multiple diseases: uses the value selected in the form dropdown.
+   * - No disease list: falls back to the global `diseaseData.label` prop.
+   */
   const effectiveDiseaseLabel =
     diseases.length === 1 ? diseases[0].diseaseData.label :
-    diseases.length > 1  ? formData.associatedDisease :
-    diseaseData.label;
+      diseases.length > 1 ? formData.associatedDisease :
+        diseaseData.label;
 
-  // ── Load a saved population into the form ──────────────────────────────────
+  /**
+   * @brief Loads a previously saved population snapshot into the form for editing.
+   * @param {number} index - Index of the population in the `populations` array.
+   */
   const loadPopulation = (index) => {
     const pop = populations[index];
     setFormData({ ...pop.formData });
@@ -63,7 +162,13 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
     setEditingIndex(index);
   };
 
-  // ── Auto-load (or reset) population selected from Navbar dropdown ──────────
+  /**
+   * @brief Effect that reacts to external edit requests coming from the Navbar dropdown.
+   *
+   * When `populationToEdit` is set to a valid index, the corresponding population
+   * is loaded into the form. When set to -1, the form is reset to its empty state.
+   * After handling, `onPopulationToEditHandled` is called to clear the request.
+   */
   useEffect(() => {
     if (populationToEdit !== null) {
       if (populationToEdit === -1) {
@@ -73,9 +178,12 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
       }
       onPopulationToEditHandled();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [populationToEdit]);
 
+  /**
+   * @brief Resets all form sections to their empty initial state and clears edit mode.
+   */
   const cancelEdit = () => {
     setFormData({ ...EMPTY_FORM });
     setDemographics({ ...EMPTY_DEMOGRAPHICS });
@@ -88,7 +196,24 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
     setEditingIndex(null);
   };
 
-  // ── Save ───────────────────────────────────────────────────────────────────
+  /**
+   * @brief Persists the current form data to the OSDi ontology via the API.
+   *
+   * The save sequence is:
+   * 1. Age — creates a `DeterministicParameter` linked to `Attribute_Age`.
+   * 2. Sex — creates a stochastic/deterministic parameter linked to `Attribute_Sex`.
+   * 3. Life expectancy — creates a stochastic/deterministic parameter.
+   * 4. Epidemiological parameters (prevalence, incidence, mortality) — each
+   *    created as an `EpidemiologicalParameter` linked to the effective disease.
+   * 5. Custom attributes — for each attribute, creates an `Attribute` individual
+   *    and a linked parameter individual.
+   * 6. Population individual — the main `Population` individual that aggregates
+   *    all previously created individuals via object properties.
+   * 7. Local snapshot — stores a deep copy in the `populations` state array.
+   *
+   * After a successful save the form is reset to its empty state.
+   * Does nothing if `formData.label` is empty.
+   */
   const handleSave = () => {
     if (!formData.label) return;
 
@@ -241,38 +366,50 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
     });
   };
 
-  // ── Table data ─────────────────────────────────────────────────────────────
+  /**
+   * @brief Builds the flat row array used by the live preview table.
+   *
+   * Each row has the shape `{ category, property, value }`. Custom attributes
+   * contribute three rows each (value, mode, source).
+   *
+   * @type {Array<{category: string, property: string, value: string}>}
+   */
   const tableData = [
-    { category: 'General',      property: 'Nombre',               value: formData.label || '-' },
-    { category: 'General',      property: 'Descripción',           value: formData.comment || '-' },
-    { category: 'General',      property: 'Enfermedad',            value: effectiveDiseaseLabel || '-' },
-    { category: 'Demografía',   property: 'Tamaño',                value: demographics.populationSize || '-' },
-    { category: 'Demografía',   property: 'Edad Media',            value: demographics.age || '-' },
-    { category: 'Demografía',   property: 'Edad Mínima',           value: demographics.minAge || '0' },
-    { category: 'Demografía',   property: 'Edad Máxima',           value: demographics.maxAge || '-' },
-    { category: 'Demografía',   property: 'Ubicación',             value: demographics.geographicLocation || '-' },
-    { category: 'Demografía',   property: 'Proporción Femenina',   value: sexData.femaleProportion || '-' },
-    { category: 'Demografía',   property: 'Modo Sexo',             value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Demografía',   property: 'Fuente Sexo',           value: sexData.source || '-' },
-    { category: 'Expectativa',  property: 'Esperanza de Vida',     value: lifeExpectancy.value || '-' },
-    { category: 'Expectativa',  property: 'Modo',                  value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Expectativa',  property: 'Fuente',                value: lifeExpectancy.source || '-' },
-    { category: 'Epidemiología', property: 'Prevalencia',          value: prevalenceData.value || '-' },
-    { category: 'Epidemiología', property: 'Modo Prevalencia',     value: prevalenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Epidemiología', property: 'Fuente Prevalencia',   value: prevalenceData.source || '-' },
-    { category: 'Epidemiología', property: 'Incidencia',           value: incidenceData.value || '-' },
-    { category: 'Epidemiología', property: 'Modo Incidencia',      value: incidenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Epidemiología', property: 'Fuente Incidencia',    value: incidenceData.source || '-' },
-    { category: 'Epidemiología', property: 'Mortalidad',           value: mortalityData.value || '-' },
-    { category: 'Epidemiología', property: 'Modo Mortalidad',      value: mortalityData.isStochastic ? 'Estocástico' : 'Determinístico' },
-    { category: 'Epidemiología', property: 'Fuente Mortalidad',    value: mortalityData.source || '-' },
+    { category: 'General', property: 'Nombre', value: formData.label || '-' },
+    { category: 'General', property: 'Descripción', value: formData.comment || '-' },
+    { category: 'General', property: 'Enfermedad', value: effectiveDiseaseLabel || '-' },
+    { category: 'Demografía', property: 'Tamaño', value: demographics.populationSize || '-' },
+    { category: 'Demografía', property: 'Edad Media', value: demographics.age || '-' },
+    { category: 'Demografía', property: 'Edad Mínima', value: demographics.minAge || '0' },
+    { category: 'Demografía', property: 'Edad Máxima', value: demographics.maxAge || '-' },
+    { category: 'Demografía', property: 'Ubicación', value: demographics.geographicLocation || '-' },
+    { category: 'Demografía', property: 'Proporción Femenina', value: sexData.femaleProportion || '-' },
+    { category: 'Demografía', property: 'Modo Sexo', value: sexData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Demografía', property: 'Fuente Sexo', value: sexData.source || '-' },
+    { category: 'Expectativa', property: 'Esperanza de Vida', value: lifeExpectancy.value || '-' },
+    { category: 'Expectativa', property: 'Modo', value: lifeExpectancy.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Expectativa', property: 'Fuente', value: lifeExpectancy.source || '-' },
+    { category: 'Epidemiología', property: 'Prevalencia', value: prevalenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Prevalencia', value: prevalenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Prevalencia', value: prevalenceData.source || '-' },
+    { category: 'Epidemiología', property: 'Incidencia', value: incidenceData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Incidencia', value: incidenceData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Incidencia', value: incidenceData.source || '-' },
+    { category: 'Epidemiología', property: 'Mortalidad', value: mortalityData.value || '-' },
+    { category: 'Epidemiología', property: 'Modo Mortalidad', value: mortalityData.isStochastic ? 'Estocástico' : 'Determinístico' },
+    { category: 'Epidemiología', property: 'Fuente Mortalidad', value: mortalityData.source || '-' },
     ...customAttributes.filter(a => a.name).flatMap(a => ([
-      { category: 'Personalizado', property: a.name,              value: a.value || '-' },
-      { category: 'Personalizado', property: `Modo ${a.name}`,   value: a.isStochastic ? 'Estocástico' : 'Determinístico' },
+      { category: 'Personalizado', property: a.name, value: a.value || '-' },
+      { category: 'Personalizado', property: `Modo ${a.name}`, value: a.isStochastic ? 'Estocástico' : 'Determinístico' },
       { category: 'Personalizado', property: `Fuente ${a.name}`, value: a.source || '-' },
     ]))
   ];
 
+  /**
+   * @brief Returns a Tailwind CSS class string for the category badge in the preview table.
+   * @param {string} cat - Category name ('General', 'Demografía', 'Expectativa', 'Epidemiología', or custom).
+   * @returns {string} Tailwind background and text color classes.
+   */
   const categoryColor = (cat) => {
     switch (cat) {
       case 'General': return 'bg-slate-200 text-slate-600';
@@ -300,7 +437,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
 
       <div className="flex h-full w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left Panel: Population Form */}
         <div className="w-1/2 overflow-y-auto custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -358,7 +495,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
-            {/* Demografía */}
+            {/* Demography */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-blue-100 rounded-lg"><Users className="w-4 h-4 text-blue-600" /></div>
@@ -459,7 +596,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
-            {/* Sexo */}
+            {/* Sex */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-blue-100 rounded-lg"><Users className="w-4 h-4 text-blue-600" /></div>
@@ -519,7 +656,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
-            {/* Esperanza de Vida */}
+            {/* Life Expectancy */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-blue-100 rounded-lg"><ShieldCheck className="w-4 h-4 text-blue-600" /></div>
@@ -567,12 +704,12 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
-            {/* Parámetros Epidemiológicos */}
+            {/* Epidemiological Parameters */}
             <EpidemiologicalParameterCard title="Prevalencia" data={prevalenceData} onChange={handlePrevalenceChange} valuePlaceholder="0.0000147885" valueStep="0.0000001" />
             <EpidemiologicalParameterCard title="Incidencia" data={incidenceData} onChange={handleIncidenceChange} valuePlaceholder="0.0116" valueStep="0.0001" />
             <EpidemiologicalParameterCard title="Mortalidad" data={mortalityData} onChange={handleMortalityChange} valuePlaceholder="0.052" valueStep="0.001" />
 
-            {/* Atributos Personalizados */}
+            {/* Custom Attributes */}
             <div className="bg-white/60 rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
@@ -678,10 +815,11 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
           </div>
         </div>
 
-        {/* ══ RIGHT PANEL: Table ══════════════════════════════════════════════ */}
+        {/* Right Panel: Table */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-blue-500 overflow-hidden">
 
+            {/* Header */}
             <div className="p-8 bg-linear-to-r from-blue-100 to-white shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
@@ -700,6 +838,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
+            {/* Content */}
             <div className="flex-1 overflow-y-auto px-8 pt-6 custom-scrollbar">
               <div className="space-y-2 pb-4">
                 <div className="grid grid-cols-12 px-4 mb-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -723,6 +862,7 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
               </div>
             </div>
 
+            {/* Footer note */}
             <div className="px-8 py-4 bg-linear-to-r from-white to-blue-100 shrink-0">
               <p className="text-[10px] text-blue-600 font-medium text-center tracking-widest italic">
                 Esta tabla muestra una vista previa de los campos acerca de la población afectada.
@@ -732,7 +872,8 @@ function PopulationPage({ onNavigate, currentPage, diseaseData, diseases = [], p
         </div>
       </div>
 
-      <style jsx>{`
+      {/* Custom scrollbar */}
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(29, 78, 216, 0.3); border-radius: 10px; }

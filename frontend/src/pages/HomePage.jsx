@@ -1,27 +1,51 @@
+/**
+ * @file HomePage.jsx
+ * @brief Landing page and project hub of the OSDi application.
+ *
+ * Shown when `currentPage === 'home'`. Handles user authentication via
+ * {@link Login}, project creation and display of previously saved projects.
+ *
+ * @module HomePage
+ */
+
 import { useState } from 'react';
 import { Plus, AlertCircle, FileText, Loader, LogOut, User, ChevronDown } from 'lucide-react';
 import { Login } from '../components/Login';
-import ProjectCard, {
-  DiabetesIcon,
-  HeartDiseaseIcon,
-  CancerIcon,
-  RespiratoryIcon,
-  AlzheimerIcon
-} from '../components/ProjectCard';
+import ProjectCard, { DiabetesIcon, HeartDiseaseIcon, CancerIcon, RespiratoryIcon, AlzheimerIcon } from '../components/ProjectCard';
 import useLocalStorageUser from '../hooks/useLocalStorageUser';
 import useProjects from '../hooks/useProjects';
 
+/** @constant {string} Base URL of the FastAPI backend. */
 const API_BASE_URL = 'http://localhost:8000';
 
+/**
+ * Ordered pool of icon components cycled deterministically by project name.
+ * @constant {React.ComponentType[]}
+ */
 const DISEASE_ICONS = [DiabetesIcon, HeartDiseaseIcon, CancerIcon, RespiratoryIcon, AlzheimerIcon];
+
+/**
+ * Tailwind colour names paired with each icon in {@link DISEASE_ICONS}.
+ * @constant {string[]}
+ */
 const ICON_COLORS = ['emerald', 'rose', 'purple', 'blue', 'amber'];
 
+/**
+ * Ordered workflow steps displayed below the "Crear Nuevo Proyecto" button.
+ * @constant {string[]}
+ */
 const STEPS = [
-  'Completa los formularios de cada aspecto clave de la enfermedad.',
-  'Se rellenará automáticamente un grafo interactivo que te permite ver tu enfermedad y las relaciones entre sus componentes.',
-  'Accede a la fase de evaluación, donde podrás analizar el impacto económico.',
+  'Completa los formularios de cada aspecto clave de la enfermedad y su progresión.',
+  'Se rellenará automáticamente un grafo interactivo que te permite visualizar las relaciones entre los componentes de tu enfermedad.',
+  'Termina de definir tanto la población afectada como las intervenciones a evaluar.',
 ];
 
+/**
+ * Deterministically selects an icon and colour for a project based on its name.
+ * Uses a simple polynomial hash so the same project always gets the same icon.
+ * @param {string} projectName - Display name of the project.
+ * @returns {{ icon: React.ComponentType, color: string }}
+ */
 const getIconForProject = (projectName) => {
   let hash = 0;
   for (let i = 0; i < projectName.length; i++) {
@@ -31,10 +55,19 @@ const getIconForProject = (projectName) => {
   return { icon: DISEASE_ICONS[index], color: ICON_COLORS[index] };
 };
 
+/**
+ * @component HomePage
+ * @description Landing page shown when no project is active.
+ *
+ * - If the user is not authenticated, renders the {@link Login} screen.
+ * - Otherwise renders the project creation button and the list of previous projects.
+ *
+ * @param {Function} onNavigate - Callback to navigate to another page (receives a page key string).
+ * @returns {JSX.Element}
+ */
 function HomePage({ onNavigate }) {
   const { user, login, logout } = useLocalStorageUser();
   const { projects, loading: loadingProjects } = useProjects(user);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showAllProjects, setShowAllProjects] = useState(false);
@@ -43,6 +76,13 @@ function HomePage({ onNavigate }) {
     return <Login onLogin={login} />;
   }
 
+  /**
+   * Fetches the base `ontology.owl` file from `/public`, uploads it to the
+   * backend via `POST /ontology/load`, and navigates to the Disease page on
+   * success.
+   * @async
+   * @returns {Promise<void>}
+   */
   const handleCreateProject = async () => {
     setLoading(true);
     setError('');
@@ -78,14 +118,17 @@ function HomePage({ onNavigate }) {
     }
   };
 
+  // Projects shown in the grid. If `showAllProjects` is false, only the first 4 are shown.
   const displayedProjects = showAllProjects ? projects : projects.slice(0, 4);
+
+  // True when there are more than 4 projects and the "show more" toggle should be visible.
   const hasMoreProjects = projects.length > 4;
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-6">
       <div className="max-w-4xl w-full">
 
-        {/* Header usuario */}
+        {/* User header */}
         <div className="mb-6 flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-slate-100 border-2 border-slate-900 rounded-full flex items-center justify-center">
@@ -105,7 +148,7 @@ function HomePage({ onNavigate }) {
           </button>
         </div>
 
-        {/* Hero */}
+        {/* Title */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-600 rounded-2xl mb-6 shadow-lg shadow-emerald-200">
             <FileText className="w-12 h-12 text-white" />
@@ -129,7 +172,7 @@ function HomePage({ onNavigate }) {
           </div>
         )}
 
-        {/* Tarjeta Principal */}
+        {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl shadow-slate-300 border border-slate-100 p-10">
           <div className="w-full flex justify-center items-center">
             <button
@@ -159,7 +202,7 @@ function HomePage({ onNavigate }) {
           </div>
         </div>
 
-        {/* Proyectos */}
+        {/* Projects */}
         <div className="mt-8">
           {loadingProjects ? (
             <div className="flex justify-center items-center py-12">
@@ -182,7 +225,8 @@ function HomePage({ onNavigate }) {
                   );
                 })}
               </div>
-
+              
+              {/* "Show more" toggle if there are more than 4 projects */}
               {hasMoreProjects && (
                 <div className="mt-4 flex justify-center">
                   <button

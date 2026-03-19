@@ -1,5 +1,32 @@
+/**
+ * @file ProjectCard.jsx
+ * @brief Square card button used on the home page to navigate to a disease-model section,
+ * plus a set of themed SVG disease icons.
+ *
+ * `ProjectCard` renders a coloured, hover-animated square button with an icon and a title.
+ * The five named SVG components (`DiabetesIcon`, `HeartDiseaseIcon`, `CancerIcon`,
+ * `RespiratoryIcon`, `AlzheimerIcon`) are ready-made illustrations that can be passed
+ * as the `icon` prop.
+ *
+ * @module components/ProjectCard
+ */
+
 import React from 'react';
 
+/**
+ * @brief Navigable square card representing a disease-model section or project shortcut.
+ *
+ * Applies a colour theme from a predefined palette and renders the provided icon
+ * component scaled up on hover.
+ *
+ * @param {string}      props.title        - Label displayed below the icon.
+ * @param {React.ElementType} props.icon   - Icon component (e.g. `DiabetesIcon`) rendered at 64 × 64 px.
+ * @param {string}      [props.color='emerald'] - Colour theme key. One of `'emerald'`, `'blue'`,
+ *   `'purple'`, `'rose'`, `'amber'`.
+ * @param {Function}    props.onClick      - Callback fired when the card button is clicked.
+ *
+ * @returns {JSX.Element} The rendered project card button.
+ */
 const ProjectCard = ({ title, icon: Icon, color = 'emerald', onClick }) => {
   const colorClasses = {
     emerald: 'bg-emerald-500/10 text-emerald-600 border-emerald-200 hover:bg-emerald-500/20 hover:border-emerald-300',
@@ -13,7 +40,7 @@ const ProjectCard = ({ title, icon: Icon, color = 'emerald', onClick }) => {
     <button
       onClick={onClick}
       className={`
-        group relative w-full aspect-square rounded-2xl border-2 
+        group relative w-full aspect-square rounded-2xl border-2
         ${colorClasses[color]}
         transition-all duration-300 hover:scale-105 hover:shadow-xl
         flex flex-col items-center justify-center p-6
@@ -23,7 +50,7 @@ const ProjectCard = ({ title, icon: Icon, color = 'emerald', onClick }) => {
       <div className="mb-4 transform group-hover:scale-110 transition-transform duration-300">
         <Icon className="w-16 h-16" />
       </div>
-      
+
       {/* Title */}
       <h3 className="text-sm font-bold text-slate-800 text-center leading-tight">
         {title}
@@ -37,7 +64,14 @@ const ProjectCard = ({ title, icon: Icon, color = 'emerald', onClick }) => {
   );
 };
 
-// SVG Icons for different diseases
+// ── Disease SVG icons ─────────────────────────────────────────────────────────
+
+/**
+ * @brief Circular SVG icon representing diabetes (glucose ring motif).
+ * @param {Object} props
+ * @param {string} [props.className] - Tailwind / CSS class forwarded to the `<svg>` element.
+ * @returns {JSX.Element}
+ */
 export const DiabetesIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="32" cy="32" r="28" fill="currentColor" opacity="0.2"/>
@@ -47,6 +81,12 @@ export const DiabetesIcon = ({ className }) => (
   </svg>
 );
 
+/**
+ * @brief Heart-shaped SVG icon representing cardiovascular / heart disease.
+ * @param {Object} props
+ * @param {string} [props.className] - Tailwind / CSS class forwarded to the `<svg>` element.
+ * @returns {JSX.Element}
+ */
 export const HeartDiseaseIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M32 52L12 32C8 28 8 20 14 14s14-4 18 2c4-6 12-8 18-2s6 14 2 18L32 52z" fill="currentColor" opacity="0.2"/>
@@ -55,6 +95,12 @@ export const HeartDiseaseIcon = ({ className }) => (
   </svg>
 );
 
+/**
+ * @brief Cell-cluster SVG icon representing oncological / cancer diseases.
+ * @param {Object} props
+ * @param {string} [props.className] - Tailwind / CSS class forwarded to the `<svg>` element.
+ * @returns {JSX.Element}
+ */
 export const CancerIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="32" cy="32" r="20" fill="currentColor" opacity="0.2"/>
@@ -68,6 +114,12 @@ export const CancerIcon = ({ className }) => (
   </svg>
 );
 
+/**
+ * @brief Lung-shaped SVG icon representing respiratory diseases.
+ * @param {Object} props
+ * @param {string} [props.className] - Tailwind / CSS class forwarded to the `<svg>` element.
+ * @returns {JSX.Element}
+ */
 export const RespiratoryIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M32 12v40M20 20c-6 0-8 4-8 8s2 8 8 8M44 20c6 0 8 4 8 8s-2 8-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
@@ -77,6 +129,12 @@ export const RespiratoryIcon = ({ className }) => (
   </svg>
 );
 
+/**
+ * @brief Brain-outline SVG icon representing neurodegenerative (Alzheimer) diseases.
+ * @param {Object} props
+ * @param {string} [props.className] - Tailwind / CSS class forwarded to the `<svg>` element.
+ * @returns {JSX.Element}
+ */
 export const AlzheimerIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="32" cy="28" r="16" fill="currentColor" opacity="0.2"/>

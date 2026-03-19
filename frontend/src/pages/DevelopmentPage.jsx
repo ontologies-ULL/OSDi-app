@@ -1,3 +1,20 @@
+/**
+ * @file DevelopmentPage.jsx
+ * @brief Development editor.
+ *
+ * Allows the user to define `Development` OWL individuals.
+ * Each development can be linked to existing manifestations
+ * via the `hasDiseaseProgression` object property.
+ *
+ * Items are persisted to the backend via {@link createIndividual} and appended to
+ * the shared `developments` array in `App.jsx`.
+ *
+ * The right panel renders a live {@link OntologyFlowGraph} showing the full
+ * disease graph.
+ *
+ * @module DevelopmentPage
+ */
+
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, GitMerge, Plus, Trash2, ChevronDown, ChevronUp, GitBranch, Layers, ArrowRight } from 'lucide-react';
 import DiseaseTabs from '../components/DiseaseTabs';
@@ -5,17 +22,57 @@ import useSaveStatus from '../hooks/useSaveStatus';
 import { createIndividual } from '../api/ontology';
 import OntologyFlowGraph from '../components/OntologyFlowGraph';
 
+/**
+ * Default (empty) state for the development creation form.
+ * @constant {{ label: string, description: string, linkedProgressions: string[] }}
+ */
 const EMPTY_DEVELOPMENT = { label: '', description: '', linkedProgressions: [] };
 
-// Props: developments and setDevelopments come from App.jsx (persisted across navigation)
+/**
+ * @component DevelopmentPage
+ * @description Two-column editor for `Development` individuals of the OSDi ontology.
+ *
+ * **Left panel**:
+ * - Label and description fields.
+ * - A multi-select checklist of available progression elements to link via
+ *   `hasDiseaseProgression`.
+ * - A scrollable list of already-created developments with expand/delete controls.
+ *
+ * **Right panel**: Ontology Graph.
+ *
+ * @param {Function} props.onNavigate                             - Top-level navigation callback.
+ * @param {string}   [props.currentPage='development']            - Active page key (used by DiseaseTabs).
+ * @param {import('../App').ProgressionElement[]} [props.progressionElements=[]]
+ *   - Combined list of manifestations and combination rules available for linking.
+ * @param {import('../App').Development[]} props.developments     - Shared developments array from App.
+ * @param {Function} props.setDevelopments                        - Setter for the shared developments array.
+ * @param {Object[]} [props.graphNodes=[]]                        - React Flow nodes for the right-panel graph.
+ * @param {Object[]} [props.graphEdges=[]]                        - React Flow edges for the right-panel graph.
+ * @returns {JSX.Element}
+ */
 function DevelopmentPage({ onNavigate, currentPage = 'development', progressionElements = [], developments, setDevelopments, graphNodes = [], graphEdges = [] }) {
+
+  /**
+   * Form state for the development being created.
+   * @type {[{label: string, description: string, linkedProgressions: string[]}, Function]}
+   */
   const [form, setForm] = useState({ ...EMPTY_DEVELOPMENT });
+
+  /** @type {[number[], Function]} Indices of expanded development list items. */
   const [expandedDevs, setExpandedDevs] = useState([]);
 
   const { saving, success, error, withSave } = useSaveStatus();
 
+  /**
+   * Generic change handler for the development form text inputs.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>} e
+   */
   const handleInputChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
+  /**
+   * Toggles a progression element label in `form.linkedProgressions`.
+   * @param {string} label - Label of the progression element to toggle.
+   */
   const toggleLinked = (label) => {
     setForm(prev => ({
       ...prev,
@@ -25,6 +82,15 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
     }));
   };
 
+  /**
+   * Persists the current `form` as a `Development` OWL individual and appends
+   * it to the shared `developments` array. Resets the form on success.
+   *
+   * Object properties assembled:
+   * - `hasDiseaseProgression` for each linked progression element.
+   *
+   * Guards against empty label.
+   */
   const handleSave = () => {
     if (!form.label) return;
     withSave(async () => {
@@ -46,24 +112,34 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
     });
   };
 
+  /**
+   * Removes a development from the shared array by index.
+   * @param {number} index - Position in the `developments` array to remove.
+   */
   const handleDelete = (index) => {
     setDevelopments(prev => prev.filter((_, i) => i !== index));
   };
 
+  /**
+   * Returns a display label and Tailwind colour classes for a given OWL class name.
+   * Used to render type badges in the progression element checklist.
+   * @param {string} type - OWL class identifier.
+   * @returns {{ text: string, cls: string }}
+   */
   const typeLabel = (type) => {
-    if (type === 'AcuteManifestation') return { text: 'Manifestación Aguda', cls: 'bg-yellow-100 text-yellow-800' };
-    if (type === 'ChronicManifestation') return { text: 'Manifestación Crónica', cls: 'bg-amber-100 text-amber-800' };
-    if (type === 'CoexistentDiseaseProgressionSet') return { text: 'Regla Coexistente', cls: 'bg-teal-100 text-teal-700' };
-    if (type === 'AlternativeDiseaseProgressionSet') return { text: 'Regla Alternativa', cls: 'bg-teal-100 text-teal-700' };
-    if (type === 'SequentialDiseaseProgressionSet') return { text: 'Regla Secuencial', cls: 'bg-teal-100 text-teal-700' };
-    if (type === 'Development') return { text: 'Desarrollo', cls: 'bg-indigo-100 text-indigo-700' };
+    if (type === 'AcuteManifestation')               return { text: 'Manifestación Aguda',  cls: 'bg-yellow-100 text-yellow-800' };
+    if (type === 'ChronicManifestation')             return { text: 'Manifestación Crónica', cls: 'bg-amber-100 text-amber-800' };
+    if (type === 'CoexistentDiseaseProgressionSet')  return { text: 'Regla Coexistente',     cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'AlternativeDiseaseProgressionSet') return { text: 'Regla Alternativa',     cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'SequentialDiseaseProgressionSet')  return { text: 'Regla Secuencial',      cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'Development')                      return { text: 'Desarrollo',            cls: 'bg-indigo-100 text-indigo-700' };
     return { text: type, cls: 'bg-gray-100 text-gray-700' };
   };
 
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Floating messages */}
+      {/* Save result toast */}
       {(error || success) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${error ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'}`}>
@@ -75,7 +151,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left panel */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -89,10 +165,9 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
                 Define las vías de progresión de la enfermedad (ej: historia natural sin cribado, forma profunda vs parcial)
               </p>
             </div>
-              
+
             <DiseaseTabs currentPage={currentPage} onNavigate={onNavigate} />
 
-            {/* Info note */}
             <div className="flex items-start gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
               <Layers className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
               <div className="text-xs text-emerald-800 leading-relaxed">
@@ -112,7 +187,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
               </div>
             )}
 
-            {/* Form */}
+            {/* Development creation form */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm space-y-4">
               <div className="flex items-center space-x-3 mb-2">
                 <div className="p-2 bg-emerald-100 rounded-lg"><GitMerge className="w-4 h-4 text-emerald-600" /></div>
@@ -138,7 +213,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
                 />
               </div>
 
-              {/* Link to progression elements */}
+              {/* Progression element checklist */}
               {progressionElements.length > 0 && (
                 <div>
                   <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 mb-2 block">
@@ -179,7 +254,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
               </button>
             </div>
 
-            {/* List of developments */}
+            {/* Developments list */}
             {developments.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Desarrollos creados ({developments.length})</h3>
@@ -230,7 +305,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
               </div>
             )}
 
-            {/* ── Navigation ─────────────────────────────────────────────────── */}
+            {/* Proceed to StagePage */}
             <button
               onClick={() => onNavigate('stage')}
               className="w-full bg-linear-to-r from-emerald-600 to-emerald-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center space-x-3 shadow-lg shadow-emerald-200"
@@ -241,7 +316,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
           </div>
         </div>
 
-        {/* ══ RIGHT PANEL: Ontology graph ═════════════════════════════════════ */}
+        {/* Right panel: Ontology graph */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-emerald-500 overflow-hidden">
 
@@ -282,7 +357,7 @@ function DevelopmentPage({ onNavigate, currentPage = 'development', progressionE
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }

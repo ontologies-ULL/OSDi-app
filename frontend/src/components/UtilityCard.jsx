@@ -1,19 +1,62 @@
+/**
+ * @file UtilityCard.jsx
+ * @brief Memoised expandable card component for a single utility / disutility parameter.
+ *
+ * Renders a collapsible row showing the utility name, value, and mode. When
+ * expanded it shows:
+ * - A [0, 1] range hint box.
+ * - Name field.
+ * - Configuration mode toggle (deterministic / stochastic).
+ * - Deterministic mode: value, calculation method, utility/disutility type, application type.
+ * - Stochastic mode: `StochasticConfig` panel followed by the same fields.
+ * - Out-of-range warning when the value is outside [0, 1].
+ * - Disutility sign reminder (value must be entered as a positive number).
+ * - Bibliographic source field.
+ *
+ * Wrapped in `React.memo` to skip re-renders when siblings change.
+ *
+ * @module components/UtilityCard
+ */
+
 import { memo, useCallback } from 'react';
 import { Sparkles, ChevronDown, ChevronRight, Trash2, AlertCircle } from 'lucide-react';
 import ToggleButton from './ToggleButton';
 import { StochasticConfig } from './AdvancedParameterComponent';
 
+/**
+ * @brief Memoised expandable card for a single utility or disutility entry.
+ *
+ * @param {Object}   props.utilityData      - Current state of the utility entry.
+ * @param {number}   props.index            - Position index within the utilities list.
+ * @param {Function} props.onUpdate         - Callback `(index, updatedUtility)` called on any field change.
+ * @param {Function} props.onDelete         - Callback `(index)` called when the delete button is clicked.
+ * @param {boolean}  props.canDelete        - Whether the delete button should be rendered.
+ * @param {boolean}  props.isExpanded       - Whether the card body is currently expanded.
+ * @param {Function} props.onToggleExpand   - Callback to toggle the expanded state.
+ *
+ * @returns {JSX.Element} The rendered utility card.
+ */
 const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, onDelete, canDelete, isExpanded, onToggleExpand }) {
+  /** 
+   * @brief Memoized field change handler that normalises checkbox values. 
+   */
   const handleChange = useCallback((e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     onUpdate(index, { ...utilityData, [e.target.name]: value });
   }, [utilityData, index, onUpdate]);
 
+  /** 
+   * @brief Memoized delete handler that stops event propagation to avoid toggling the card. 
+   */
   const handleDelete = useCallback((e) => {
     e.stopPropagation();
     onDelete(index);
   }, [onDelete, index]);
 
+  /**
+   * @brief Converts the boolean toggle value from `ToggleButton` into the
+   * `'Stochastic'` / `'Deterministic'` string expected by the data model.
+   */
   const handleParameterTypeChange = useCallback((e) => {
     handleChange({
       target: {
@@ -23,6 +66,10 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
     });
   }, [handleChange]);
 
+  /**
+   * @brief True when the entered value exists but falls outside the valid [0, 1] range.
+   * @type {boolean}
+   */
   const isOutOfRange = utilityData.value !== '' &&
     utilityData.value !== undefined &&
     (parseFloat(utilityData.value) < 0 || parseFloat(utilityData.value) > 1);
@@ -30,7 +77,7 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
   return (
     <div className="bg-slate-50 backdrop-blur-sm rounded-2xl border-2 border-slate-200 overflow-hidden transition-all hover:border-slate-300 hover:shadow-md">
 
-      {/* ── Header colapsable ── */}
+      {/* Collapsible header */}
       <div
         className="flex items-center justify-between p-4 cursor-pointer bg-linear-to-r from-slate-200/50 to-white"
         onClick={onToggleExpand}
@@ -68,11 +115,11 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
         )}
       </div>
 
-      {/* ── Contenido colapsable ── */}
+      {/* Expanded content */}
       {isExpanded && (
         <div className="p-6 pt-4 space-y-4 border-t border-slate-100 bg-white/40">
 
-          {/* Hint box: range 0-1 */}
+          {/* Range hint box */}
           <div className="flex items-start gap-3 p-3 bg-rose-50 rounded-xl border border-rose-200">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <p className="text-xs text-rose-700 leading-relaxed">
@@ -80,7 +127,7 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
             </p>
           </div>
 
-          {/* Nombre identificativo */}
+          {/* Name */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Nombre de la Utilidad</label>
             <input
@@ -93,7 +140,7 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
             />
           </div>
 
-          {/* TOGGLE: Simple vs Avanzado */}
+          {/* Mode toggle */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Modo de Configuración</label>
             <ToggleButton
@@ -105,7 +152,7 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
             />
           </div>
 
-          {/* ══════════ SIMPLE (Determinístico) ══════════ */}
+          {/* Deterministic fields */}
           {utilityData.parameterType === 'Deterministic' && (
             <>
               <div className="grid grid-cols-2 gap-4">
@@ -188,7 +235,7 @@ const UtilityCard = memo(function UtilityCard({ utilityData, index, onUpdate, on
             </>
           )}
 
-          {/* ══════════ AVANZADO (Estocástico) ══════════ */}
+          {/* Stochastic fields */}
           {utilityData.parameterType === 'Stochastic' && (
             <>
               <StochasticConfig

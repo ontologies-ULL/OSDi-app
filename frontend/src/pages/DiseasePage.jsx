@@ -1,30 +1,88 @@
+/**
+ * @file DiseasePage.jsx
+ * @brief Disease identity and classification editor.
+ *
+ * Allows the user to define the core ontological identity of a disease. 
+ * On save, the individual is persisted to the backend via {@link createIndividual} 
+ * and a snapshot is stored in the shared App state via `onSaveDiseaseSnapshot`.
+ *
+ * The right panel renders a live {@link OntologyFlowGraph} that updates
+ * reactively as the form is filled in.
+ *
+ * @module DiseasePage
+ */
+
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Pencil, Stethoscope, Database, ShieldCheck, GitBranch, Save, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowRight, Pencil, Stethoscope, Database, ShieldCheck, GitBranch } from 'lucide-react';
 import OntologyFlowGraph from '../components/OntologyFlowGraph';
 import DiseaseTabs from '../components/DiseaseTabs';
 import { createIndividual } from '../api/ontology';
 import useSaveStatus from '../hooks/useSaveStatus';
 
+/**
+ * Available OWL disease subtypes the user can assign to the disease individual.
+ * @constant {{ id: string, label: string, desc: string }[]}
+ */
 const DISEASE_SUBTYPES = [
-  { id: 'InheritedDisease', label: 'Hereditaria', desc: 'Causada por variantes genéticas heredadas' },
-  { id: 'RareDisease', label: 'Rara', desc: 'Prevalencia < 5 por 10.000 habitantes' },
-  { id: 'InfectiousDisease', label: 'Infecciosa', desc: 'Causada por agentes patógenos externos (virus, bacterias, parásitos)' },
+  { id: 'InheritedDisease',   label: 'Hereditaria', desc: 'Causada por variantes genéticas heredadas' },
+  { id: 'RareDisease',        label: 'Rara',         desc: 'Prevalencia < 5 por 10.000 habitantes' },
+  { id: 'InfectiousDisease',  label: 'Infecciosa',   desc: 'Causada por agentes patógenos externos (virus, bacterias, parásitos)' },
 ];
 
-function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, setDiseaseName, graphNodes = [], graphEdges = [], diseases = [], editingDiseaseIndex = null, onSaveDiseaseSnapshot }) {
+/**
+ * @component DiseasePage
+ * @description Two-column editor for the disease node of the OSDi ontology.
+ *
+ * **Left panel** — form with three sections:
+ * - *Información General*
+ * - *Clasificación Ontológica*
+ * - *Sistemas de Referencia*
+ *
+ * **Right panel** — live `OntologyFlowGraph` fed by `graphNodes`/`graphEdges`
+ * computed in `App.jsx`.
+ *
+ * Local form state is kept in sync with the shared `diseaseData` via a
+ * `useEffect` so every other page always sees the latest values without
+ * requiring an explicit save.
+ *
+ * @param {Function}           onNavigate                     - Top-level navigation callback.
+ * @param {import('../App').DiseaseData} diseaseData          - Shared disease state from App.
+ * @param {Function}           setDiseaseData                 - Setter for the shared disease state.
+ * @param {Function}           setDiseaseName                 - Setter for the navbar disease display name.
+ * @param {import('../App').DiseaseSnapshot[]} [diseases=[]]  - All saved disease snapshots.
+ * @param {number|null}        [editingDiseaseIndex=null]     - Index of the snapshot being edited, or null for a new disease.
+ * @param {Function}           onSaveDiseaseSnapshot          - Persists the current state as a disease snapshot in App.
+ * @param {Object[]}           [graphNodes=[]]                - React Flow nodes for the right-panel graph.
+ * @param {Object[]}           [graphEdges=[]]                - React Flow edges for the right-panel graph.
+ * @returns {JSX.Element}
+ */
+function DiseasePage({ onNavigate, diseaseData, setDiseaseData, setDiseaseName, diseases = [], editingDiseaseIndex = null, onSaveDiseaseSnapshot, graphNodes = [], graphEdges = []}) {
+
+  /**
+   * Local copy of the disease identity fields.
+   * @type {[{label: string, comment: string, selectedSubtypes: string[]}, Function]}
+   */
   const [formData, setFormData] = useState({
     label: diseaseData.label || '',
     comment: diseaseData.comment || '',
     selectedSubtypes: diseaseData.selectedSubtypes || [],
   });
 
+  /**
+   * Local copy of the external reference IRI fields.
+   * @type {[{hasRefToDO: string, hasRefToICD: string, hasRefToOMIM: string, hasRefToSNOMED: string}, Function]}
+   */
   const [references, setReferences] = useState({
-    hasRefToDO: diseaseData.references?.hasRefToDO || '',
-    hasRefToICD: diseaseData.references?.hasRefToICD || '',
-    hasRefToOMIM: diseaseData.references?.hasRefToOMIM || '',
+    hasRefToDO:     diseaseData.references?.hasRefToDO     || '',
+    hasRefToICD:    diseaseData.references?.hasRefToICD    || '',
+    hasRefToOMIM:   diseaseData.references?.hasRefToOMIM   || '',
     hasRefToSNOMED: diseaseData.references?.hasRefToSNOMED || ''
   });
 
+  /**
+   * Keeps the shared `diseaseData` and the navbar disease name in sync with
+   * the local form state whenever either `formData` or `references` change.
+   */
   useEffect(() => {
     setDiseaseData({
       label: formData.label,
@@ -40,9 +98,23 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
 
   const { saving, success, error, withSave } = useSaveStatus();
 
+  /**
+   * Generic change handler for text inputs inside `formData`.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>} e
+   */
   const handleInputChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  /**
+   * Generic change handler for text inputs inside `references`.
+   * @param {React.ChangeEvent<HTMLInputElement>} e
+   */
   const handleReferenceChange = (e) => setReferences({ ...references, [e.target.name]: e.target.value });
 
+  /**
+   * Persists the disease individual to the backend and saves a snapshot.
+   * Assembles datatype properties from non-empty reference fields and the
+   * comment, then calls `createIndividual`.
+   */
   const handleSave = () => {
     if (!formData.label) return;
     withSave(async () => {
@@ -63,6 +135,10 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
     });
   };
 
+  /**
+   * Toggles a disease subtype on or off in `formData.selectedSubtypes`.
+   * @param {string} id - OWL class ID of the subtype to toggle.
+   */
   const handleSubtypeToggle = (id) => {
     setFormData(prev => ({
       ...prev,
@@ -77,7 +153,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left panel: Disease Information */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -89,10 +165,10 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
               <p className="text-emerald-100/80 text-sm font-medium">Define la identidad, clasificación y codificación internacional de la patología</p>
             </div>
-            
+
             <DiseaseTabs currentPage="disease" onNavigate={onNavigate} />
 
-            {/* Edit banner */}
+            {/* Edit banner, visible only when editing an existing snapshot */}
             {editingDiseaseIndex !== null && (
               <div className="flex items-center gap-2 px-5 py-3 bg-amber-50 border-2 border-amber-300 rounded-2xl">
                 <Pencil className="w-4 h-4 text-amber-600" />
@@ -100,7 +176,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
             )}
 
-            {/* Datos Principales */}
+            {/* General Information */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm space-y-4">
               <div className="flex items-center space-x-3 mb-2">
                 <div className="p-2 bg-emerald-100 rounded-lg">
@@ -127,7 +203,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
             </div>
 
-            {/* Clasificación / Subtipos */}
+            {/* Subtypes */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-5">
                 <div className="p-2 bg-emerald-100 rounded-lg">
@@ -167,7 +243,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
             </div>
 
-            {/* Sistemas de Referencia */}
+            {/* Reference Systems */}
             <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="p-2 bg-emerald-100 rounded-lg">
@@ -177,10 +253,10 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
               <div className="grid grid-cols-2 gap-4">
                 {[
-                  { name: 'hasRefToICD', label: 'CIE-10 (ICD)', ph: 'ej: E53.8' },
-                  { name: 'hasRefToSNOMED', label: 'SNOMED CT', ph: 'ej: 190602008' },
-                  { name: 'hasRefToOMIM', label: 'OMIM', ph: 'ej: 253260' },
-                  { name: 'hasRefToDO', label: 'Disease Ontology', ph: 'ej: DOID:0060728' }
+                  { name: 'hasRefToICD',    label: 'CIE-10 (ICD)',      ph: 'ej: E53.8' },
+                  { name: 'hasRefToSNOMED', label: 'SNOMED CT',         ph: 'ej: 190602008' },
+                  { name: 'hasRefToOMIM',   label: 'OMIM',              ph: 'ej: 253260' },
+                  { name: 'hasRefToDO',     label: 'Disease Ontology',  ph: 'ej: DOID:0060728' }
                 ].map(field => (
                   <div key={field.name} className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">{field.label}</label>
@@ -205,10 +281,11 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
           </div>
         </div>
 
-        {/* ══ RIGHT PANEL: Ontology graph ═════════════════════════════════════ */}
+        {/* Right panel: Ontology graph */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-emerald-500 overflow-hidden">
-
+            
+            { /* Header */ }
             <div className="p-6 bg-linear-to-r from-emerald-50 to-white shrink-0">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-4">
@@ -227,6 +304,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               </div>
             </div>
 
+            {/* Graph */}
             <div className="flex-1" style={{ position: 'relative' }}>
               <OntologyFlowGraph
                 nodes={graphNodes}
@@ -235,6 +313,7 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
               />
             </div>
 
+            {/* Footer */}
             <div className="px-8 py-4 bg-linear-to-r from-white to-emerald-50 shrink-0 border-t border-emerald-200">
               <p className="text-[10px] text-emerald-600 font-medium text-center tracking-widest italic">
                 hasDiseaseProgression → vincula la enfermedad con sus elementos de progresión
@@ -244,7 +323,8 @@ function DiseasePage({ onNavigate, currentPage, diseaseData, setDiseaseData, set
         </div>
       </div>
 
-      <style jsx>{`
+      {/* Custom scrollbar */}
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }

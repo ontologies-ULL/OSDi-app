@@ -1,8 +1,31 @@
+/**
+ * @file AdvancedParameterComponent.jsx
+ * @brief Advanced stochastic parameter configuration component for the OSDi application.
+ *
+ * Exports the `StochasticConfig` component, which renders a two-tab panel for
+ * defining a probability distribution or a set of statistical characterisation parameters.
+ *
+ * The component automatically computes and propagates the theoretical mean of
+ * the selected distribution as the `value` field via the `onChange` callback
+ * whenever the distribution parameters change.
+ *
+ * @module components/AdvancedParameterComponent
+ */
+
 import React, { useEffect, useState } from 'react';
 import { Settings, AlertTriangle, Sigma, FlaskConical, BarChart3, Book } from 'lucide-react';
 
-// ── Constantes (fuera del componente para no recrearlas en cada render) ────────
-
+/**
+ * @brief Tailwind CSS class bundles for each supported accent colour.
+ *
+ * Each entry maps a colour name to all the utility class strings required by
+ * `StochasticConfig` and its sub-components, so the full component tree can be
+ * re-coloured by changing a single `color` prop.
+ *
+ * Supported keys: `'rose'`, `'blue'` and `'emerald'`.
+ *
+ * @type {Object.<string, Object.<string, string>>}
+ */
 const COLOR_SCHEMES = {
   rose: {
     bg50: 'bg-rose-50/50',
@@ -75,6 +98,15 @@ const COLOR_SCHEMES = {
   }
 };
 
+/**
+ * @brief Descriptors for all statistical characterisation parameters available in the
+ *        "Characterisation" tab of `StochasticConfig`.
+ *
+ * Each entry maps to an OSDi ontology property and is rendered
+ * as a toggleable chip and a numeric input pair.
+ *
+ * @type {Array<{key: string, label: string, symbol: string, hint: string, type: string}>}
+ */
 const CHAR_PARAMS = [
   { key: 'average',       label: 'Media (μ)',                symbol: 'μ',  hint: 'hasAverageParameter — valor central de la distribución',                               type: 'number' },
   { key: 'stdDev',        label: 'Desviación estándar (σ)',  symbol: 'σ',  hint: 'hasStandardDeviationParameter — dispersión alrededor de la media',                    type: 'number' },
@@ -92,11 +124,31 @@ const CHAR_PARAMS = [
   { key: 'offset',        label: 'Offset / Desplazamiento',  symbol: 'd',  hint: 'hasOffsetParameter — desplazamiento del origen de la distribución',                   type: 'number' },
 ];
 
-// ── Utilidades matemáticas ────────────────────────────────────────────────────
-
+/**
+ * @brief Evaluates the probability density function of the Normal distribution.
+ * @param {number} x     - Point at which to evaluate the PDF.
+ * @param {number} mu    - Mean of the distribution.
+ * @param {number} sigma - Standard deviation of the distribution.
+ * @returns {number} PDF value at x.
+ */
 const normalPDF = (x, mu, sigma) =>
   Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
 
+/**
+ * @brief Builds all SVG path data needed to render an interactive Normal distribution curve.
+ *
+ * @param {number} mu    - Mean of the distribution.
+ * @param {number} sigma - Standard deviation of the distribution.
+ * @returns {{
+ *   linePath: string,
+ *   fillPath: string,
+ *   muSVGx: number,
+ *   mu1pSVGx: number,
+ *   mu1mSVGx: number,
+ *   mu2pSVGx: number,
+ *   mu2mSVGx: number
+ * }} SVG path strings and marker x-coordinates.
+ */
 const buildNormalCurve = (mu, sigma) => {
   const numPoints = 120;
   const range = 4 * sigma;
@@ -133,7 +185,15 @@ const buildNormalCurve = (mu, sigma) => {
   return { linePath, fillPath, muSVGx, mu1pSVGx, mu1mSVGx, mu2pSVGx, mu2mSVGx };
 };
 
-// Función logGamma (Stirling/Lanczos) — usada por betaPDF y gammaPDF
+/**
+ * @brief Computes the natural log of the Gamma function using the Lanczos approximation.
+ *
+ * Used internally by `logBeta`, `betaPDF`, and `gammaPDF` to avoid overflow when
+ * evaluating distribution PDFs for large shape parameters.
+ *
+ * @param {number} z - Input value (must be > 0).
+ * @returns {number} ln Γ(z).
+ */
 const logGamma = (z) => {
   if (z < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
   z -= 1;
@@ -146,23 +206,57 @@ const logGamma = (z) => {
   return Math.log(Math.sqrt(2 * Math.PI)) + Math.log(t) * (z + 0.5) - t + Math.log(x);
 };
 
+/**
+ * @brief Computes the natural log of the Beta function B(a, b).
+ * @param {number} a - First shape parameter (> 0).
+ * @param {number} b - Second shape parameter (> 0).
+ * @returns {number} ln B(a, b) = ln Γ(a) + ln Γ(b) − ln Γ(a+b).
+ */
 const logBeta = (a, b) => logGamma(a) + logGamma(b) - logGamma(a + b);
 
+/**
+ * @brief Evaluates the PDF of the Beta(a, b) distribution at x ∈ (0, 1).
+ * @param {number} x - Point at which to evaluate (must be in (0, 1)).
+ * @param {number} a - Alpha shape parameter (> 0).
+ * @param {number} b - Beta shape parameter (> 0).
+ * @returns {number} PDF value, or 0 if x is outside (0, 1).
+ */
 const betaPDF = (x, a, b) => {
   if (x <= 0 || x >= 1) return 0;
   return Math.exp((a - 1) * Math.log(x) + (b - 1) * Math.log(1 - x) - logBeta(a, b));
 };
 
+/**
+ * @brief Evaluates the PDF of the Gamma(a, λ) distribution at x > 0.
+ * @param {number} x - Point at which to evaluate (must be > 0).
+ * @param {number} a - Shape parameter (> 0).
+ * @param {number} l - Rate parameter λ (> 0).
+ * @returns {number} PDF value, or 0 if x ≤ 0.
+ */
 const gammaPDF = (x, a, l) => {
   if (x <= 0) return 0;
   return Math.exp(a * Math.log(l) + (a - 1) * Math.log(x) - l * x - logGamma(a));
 };
 
-// ── Custom hook ───────────────────────────────────────────────────────────────
-
+/**
+ * @brief Manages the set of active characterisation parameters in the
+ *        "Characterisation" tab of `StochasticConfig`.
+ *
+ * @param {string}   prefix   - Name prefix prepended to the synthetic event name.
+ * @param {Function} onChange - Parent `onChange` handler to notify on value changes.
+ * @returns {{
+ *   activeParams: Object.<string, string>,
+ *   toggleParam: Function,
+ *   setParamValue: Function
+ * }}
+ */
 const useCharacterizationParams = (prefix, onChange) => {
   const [activeParams, setActiveParams] = useState({});
 
+  /**
+   * @brief Toggles a characterisation parameter chip on or off.
+   * @param {string} key - Parameter key from `CHAR_PARAMS`.
+   */
   const toggleParam = (key) => {
     setActiveParams(prev => {
       const next = { ...prev };
@@ -175,6 +269,11 @@ const useCharacterizationParams = (prefix, onChange) => {
     });
   };
 
+  /**
+   * @brief Updates the value of an active characterisation parameter and notifies the parent.
+   * @param {string} key - Parameter key from `CHAR_PARAMS`.
+   * @param {string} val - New numeric value as a string.
+   */
   const setParamValue = (key, val) => {
     setActiveParams(prev => ({ ...prev, [key]: val }));
     onChange({ target: { name: `${prefix}char_${key}`, value: val } });
@@ -183,8 +282,20 @@ const useCharacterizationParams = (prefix, onChange) => {
   return { activeParams, toggleParam, setParamValue };
 };
 
-// ── Sub-componentes ───────────────────────────────────────────────────────────
-
+/**
+ * @brief Decorative information box with a coloured background and an icon.
+ *
+ * Used inside `StochasticConfig` to display a short description of the currently
+ * selected probability distribution.
+ *
+ * @param {Object}          props.colors   - Colour scheme object from `COLOR_SCHEMES`.
+ * @param {JSX.Element}     props.iconEl   - Icon element rendered in the left slot.
+ * @param {string}          props.title    - Bold title text.
+ * @param {React.ReactNode} props.children - Body text rendered below the title.
+ * @param {string}          [props.align='center'] - Flex alignment of the icon + text row ('center' or 'start').
+ *
+ * @returns {JSX.Element} The rendered info box.
+ */
 const InfoBox = ({ colors, iconEl, title, children, align = 'center' }) => (
   <div className={`relative overflow-hidden p-4 bg-linear-to-br ${colors.gradient} rounded-xl border-2 ${colors.border200} shadow-sm`}>
     <div className={`absolute top-0 right-0 w-32 h-32 ${colors.bg100} rounded-full blur-3xl opacity-30`} />
@@ -200,6 +311,27 @@ const InfoBox = ({ colors, iconEl, title, children, align = 'center' }) => (
   </div>
 );
 
+/**
+ * @brief Numeric input field with a symbol prefix and an optional remove button.
+ *
+ * Used by `StochasticConfig` for every distribution parameter field (mean, SD,
+ * bounds, α, β, λ) and by the characterisation parameter grid.
+ *
+ * @param {string}   props.label        - Field label text (shown above the input).
+ * @param {string}   props.symbol       - Short symbol rendered inside the input on the left (e.g. 'μ', 'α').
+ * @param {string}   props.name         - HTML `name` attribute forwarded to the `<input>`.
+ * @param {string}   props.value        - Controlled value of the input.
+ * @param {Function} props.onChange     - Change handler.
+ * @param {Object}   props.colors       - Colour scheme object from `COLOR_SCHEMES`.
+ * @param {string}   [props.step='0.0001']  - Numeric step for the input.
+ * @param {string}   [props.placeholder]   - Placeholder text.
+ * @param {boolean}  [props.hasError=false] - When true, renders error styling (red border).
+ * @param {Function} [props.onRemove]       - If provided, renders an × button to remove the field.
+ * @param {boolean}  [props.compact=false]  - Uses a more compact layout when true.
+ * @param {string}   [props.labelTitle]     - Tooltip text for the label element.
+ *
+ * @returns {JSX.Element} The rendered distribution input field.
+ */
 const DistributionInput = ({
   label, symbol, name, value, onChange, colors,
   step = '0.0001', placeholder, hasError = false,
@@ -242,8 +374,24 @@ const DistributionInput = ({
   </div>
 );
 
-// ── Componente principal ──────────────────────────────────────────────────────
-
+/**
+ * @brief Advanced stochastic parameter configuration panel.
+ *
+ * Renders a two-tab UI:
+ * - **Distributions**: lets the user choose among Normal, Uniform, Beta, and Gamma
+ *   distributions and fill in their parameters.
+ * - **Characterisation**: lets the user select any subset of statistical descriptors and enter their known
+ *   values.
+ *
+ * @param {Object}   props.data            - Current parameter state object. Must include at least a `distributionType` field.
+ * @param {Function} props.onChange        - Change handler called with a synthetic `{ target: { name, value } }` event.
+ * @param {string}   [props.prefix='']     - String prepended to every synthetic event `name`, allowing
+ *                                           multiple `StochasticConfig` instances in the same form.
+ * @param {string}   [props.color='rose']  - Accent colour key. Must be a key of `COLOR_SCHEMES`
+ *                                           ('rose', 'blue', or 'emerald').
+ *
+ * @returns {JSX.Element} The rendered stochastic configuration panel.
+ */
 const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
   const colors = COLOR_SCHEMES[color] || COLOR_SCHEMES.rose;
 
@@ -254,11 +402,28 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
     data.lowerBound && data.upperBound &&
     parseFloat(data.lowerBound) >= parseFloat(data.upperBound);
 
+  /**
+   * @brief True when both Normal distribution parameters are present and valid. 
+   */
   const hasNormalData = data.mean && data.standardDeviation && parseFloat(data.standardDeviation) > 0;
+
+  /** 
+   * @brief True when both Beta distribution shape parameters are present and positive. 
+   */
   const hasBetaData   = data.alpha && data.beta   && parseFloat(data.alpha) > 0 && parseFloat(data.beta) > 0;
+
+  /** 
+   * @brief True when both Gamma distribution parameters are present and positive. 
+   */
   const hasGammaData  = data.alpha && data.lambda && parseFloat(data.alpha) > 0 && parseFloat(data.lambda) > 0;
 
-  // Auto-fill valor esperado con la media teórica
+  /**
+   * @brief Effect that auto-fills the `value` field with the theoretical distribution mean.
+   *
+   * Triggered whenever any distribution parameter changes. Computes the mean for the
+   * currently selected distribution family and propagates it via `onChange` with
+   * `name = "{prefix}value"`.
+   */
   useEffect(() => {
     let computedMean = null;
 
@@ -295,7 +460,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
         <h3 className="text-md font-bold text-slate-900">Configuración Avanzada</h3>
       </div>
 
-      {/* Toggle Distribuciones / Caracterización */}
+      {/* Distributions / Characterisation */}
       <div className={`flex bg-slate-50 border ${colors.border200} rounded-xl p-1 gap-1`}>
         {[
           { id: 'distribuciones', icon: BarChart3,    label: 'Distribuciones' },
@@ -317,10 +482,10 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
         ))}
       </div>
 
-      {/* ══════════ MODO: DISTRIBUCIONES ══════════ */}
+      {/* Distribution options */}
       {configMode === 'distribuciones' && (<>
 
-        {/* Tipo de Distribución */}
+        {/* Distribution type selector */}
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Tipo de Distribución</label>
           <select
@@ -336,7 +501,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
           </select>
         </div>
 
-        {/* ═══════════════════ DISTRIBUCIÓN NORMAL ═══════════════════ */}
+        {/* Normal distribution options */}
         {data.distributionType === 'Normal' && (
           <div className="space-y-5">
             <hr className={colors.border400} />
@@ -347,7 +512,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
               siendo más probables los cercanos a ella y menos frecuentes los extremos.
             </InfoBox>
 
-            {/* Visualización Campana de Gauss DINÁMICA */}
+            {/* Live Gaussian bell curve */}
             <div className={`relative p-6 bg-linear-to-br rounded-2xl border-2 transition-all ${hasNormalData ? `${colors.gradientTo} ${colors.border200}` : 'from-slate-50 to-white border-slate-200'}`}>
               <div className="relative h-40 mb-4">
                 <svg viewBox="0 0 300 100" className="w-full h-full">
@@ -431,7 +596,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
                 </svg>
               </div>
 
-              {/* Tabla σ-bands */}
+              {/* σ-band labels */}
               <div className="relative h-8 text-[10px]">
                 {[
                   { label: 'μ−2σ', pct: 28.33, value: hasNormalData ? (parseFloat(data.mean) - 2 * parseFloat(data.standardDeviation)).toFixed(2) : '—', dim: true },
@@ -447,7 +612,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
                 ))}
               </div>
 
-              {/* Regla empírica */}
+              {/* Empirical rule note */}
               <div className={`relative overflow-hidden p-4 bg-linear-to-br rounded-xl border-2 shadow-sm mt-3 ${hasNormalData ? `${colors.gradient} ${colors.border200}` : 'from-slate-50 via-white to-slate-50 border-slate-200'}`}>
                 <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 ${hasNormalData ? colors.bg100 : 'bg-slate-100'}`} />
                 <div className="relative flex items-center gap-3">
@@ -469,7 +634,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
           </div>
         )}
 
-        {/* ═══════════════════ DISTRIBUCIÓN UNIFORME ═══════════════════ */}
+        {/* Uniform distribution options */}
         {data.distributionType === 'Uniform' && (
           <div className="space-y-5">
             <hr className={colors.border400} />
@@ -532,7 +697,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
           </div>
         )}
 
-        {/* ═══════════════════ DISTRIBUCIÓN BETA ═══════════════════ */}
+        {/* Beta distribution options */}
         {data.distributionType === 'Beta' && (
           <div className="space-y-5">
             <hr className={colors.border400} />
@@ -643,7 +808,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
           </div>
         )}
 
-        {/* ═══════════════════ DISTRIBUCIÓN GAMMA ═══════════════════ */}
+        {/* Gamma distribution options */}
         {data.distributionType === 'Gamma' && (
           <div className="space-y-5">
             <hr className={colors.border400} />
@@ -762,7 +927,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
 
       </>)}
 
-      {/* ══════════ MODO: CARACTERIZACIÓN ══════════ */}
+      {/* Characterization options */}
       {configMode === 'caracterizacion' && (
         <div className="space-y-4">
           <InfoBox
@@ -775,7 +940,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
             automáticamente a partir de los valores proporcionados.
           </InfoBox>
 
-          {/* Grid de chips para activar parámetros */}
+          {/* Chip grid for activating parameters */}
           <div>
             <p className="text-[10px] font-bold text-slate-500 uppercase mb-2 ml-1">Selecciona los parámetros que conoces</p>
             <div className="flex flex-wrap gap-1.5">
@@ -801,7 +966,7 @@ const StochasticConfig = ({ data, onChange, prefix = '', color = 'rose' }) => {
             </div>
           </div>
 
-          {/* Campos activos */}
+          {/* Active parameter inputs */}
           {Object.keys(activeParams).length > 0 && (
             <div className="space-y-3">
               <p className="text-[10px] font-bold text-slate-500 uppercase ml-1">Introduce los valores</p>

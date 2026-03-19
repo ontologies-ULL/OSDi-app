@@ -1,9 +1,29 @@
+/**
+ * @file DetectionParameterCard.jsx
+ * @brief Expandable card component for a single diagnostic detection parameter
+ * (sensitivity or specificity).
+ *
+ * Renders a collapsible row with the parameter name, value, and mode. When
+ * expanded it shows:
+ * - A contextual hint box describing the parameter.
+ * - An optional identifying name.
+ * - Configuration mode toggle (deterministic / stochastic).
+ * - Stochastic distribution config (when stochastic) with a Beta-distribution hint.
+ * - Value field (must be in [0, 1]) and bibliographic source.
+ * - An out-of-range warning when the entered value falls outside [0, 1].
+ *
+ * @module components/DetectionParameterCard
+ */
+
 import { useCallback } from 'react';
 import { ShieldCheck, Target, ChevronDown, ChevronRight, Trash2, AlertCircle } from 'lucide-react';
 import ToggleButton from './ToggleButton';
 import { StochasticConfig } from './AdvancedParameterComponent';
 
-// Accent classes compartidas por ambos tipos (sensitivity y specificity usan rose)
+/**
+ * @brief Shared accent colour tokens for both sensitivity and specificity cards.
+ * @type {Object}
+ */
 const ACCENT = {
   color: 'rose',
   accentBg: 'bg-rose-100',
@@ -12,6 +32,11 @@ const ACCENT = {
   accentFocus: 'focus:border-rose-500 focus:ring-rose-500/5',
 };
 
+/**
+ * @brief Display configuration keyed by detection parameter type.
+ *
+ * @type {Object.<string, {label: string, icon: React.ElementType, placeholder: string, hint: string}>}
+ */
 const TYPE_CONFIG = {
   sensitivity: {
     label: 'Sensibilidad',
@@ -27,6 +52,20 @@ const TYPE_CONFIG = {
   },
 };
 
+/**
+ * @brief Expandable card for a single sensitivity or specificity parameter.
+ *
+ * @param {string}   [props.type='sensitivity'] - Parameter type: `'sensitivity'` or `'specificity'`.
+ * @param {Object}   props.paramData            - Current state of the detection parameter entry.
+ * @param {number}   props.index                - Position index within the parameter list.
+ * @param {Function} props.onUpdate             - Callback `(index, updatedParam)` called on any field change.
+ * @param {Function} props.onDelete             - Callback `(index)` called when the delete button is clicked.
+ * @param {boolean}  props.canDelete            - Whether the delete button should be rendered.
+ * @param {boolean}  props.isExpanded           - Whether the card body is currently expanded.
+ * @param {Function} props.onToggleExpand       - Callback to toggle the expanded state.
+ *
+ * @returns {JSX.Element} The rendered detection parameter card.
+ */
 const DetectionParameterCard = ({
   type = 'sensitivity',
   paramData,
@@ -40,17 +79,27 @@ const DetectionParameterCard = ({
   const config = { ...ACCENT, ...TYPE_CONFIG[type] };
   const Icon = config.icon;
 
+  /** 
+   * @brief Memoized field change handler that normalises checkbox values. 
+   */
   const handleChange = useCallback((e) => {
     const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
     onUpdate(index, { ...paramData, [e.target.name]: value });
   }, [onUpdate, index, paramData]);
 
+  /** 
+   * @brief Memoized delete handler that stops event propagation to avoid toggling the card. */
   const handleDelete = useCallback((e) => {
     e.stopPropagation();
     onDelete(index);
   }, [onDelete, index]);
 
   const isStochastic = paramData.parameterType === 'Stochastic';
+
+  /**
+   * @brief True when the entered value exists but falls outside the valid [0, 1] range.
+   * @type {boolean}
+   */
   const isOutOfRange = paramData.value !== '' &&
     paramData.value !== undefined &&
     (parseFloat(paramData.value) < 0 || parseFloat(paramData.value) > 1);
@@ -104,7 +153,7 @@ const DetectionParameterCard = ({
             </p>
           </div>
 
-          {/* Nombre identificativo */}
+          {/* Optional name */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
               Nombre identificativo (opcional)
@@ -133,7 +182,7 @@ const DetectionParameterCard = ({
             />
           </div>
 
-          {/* Contenido específico del modo estocástico */}
+          {/* Stochastic distribution config + Beta recommendation */}
           {isStochastic && (
             <>
               <StochasticConfig
@@ -150,7 +199,7 @@ const DetectionParameterCard = ({
             </>
           )}
 
-          {/* Campos compartidos: Valor + Fuente */}
+          {/* Value + Source */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">
@@ -181,7 +230,7 @@ const DetectionParameterCard = ({
             </div>
           </div>
 
-          {/* Aviso rango fuera de [0,1] */}
+          {/* Out-of-range warning */}
           {isOutOfRange && (
             <div className="flex items-start gap-3 p-3 bg-amber-50 rounded-xl border border-amber-200">
               <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />

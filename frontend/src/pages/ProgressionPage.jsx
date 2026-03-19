@@ -1,3 +1,20 @@
+/**
+ * @file ProgressionPage.jsx
+ * @brief Disease progression editor: manifestations and combination rules.
+ *
+ * Allows the user to model how a disease progresses clinically by defining:
+ * - **Manifestations**
+ * - **Combination rules**
+ *
+ * Each item is saved to the backend via {@link createIndividual} and appended to
+ * the shared arrays in `App.jsx`.
+ *
+ * The right panel renders a live {@link OntologyFlowGraph} showing the full
+ * disease graph.
+ *
+ * @module ProgressionPage
+ */
+
 import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, Activity, Plus, Trash2, ChevronDown, ChevronUp, GitBranch, ArrowRight } from 'lucide-react';
 import DiseaseTabs from '../components/DiseaseTabs';
@@ -5,33 +22,100 @@ import useSaveStatus from '../hooks/useSaveStatus';
 import { createIndividual } from '../api/ontology';
 import OntologyFlowGraph from '../components/OntologyFlowGraph';
 
+/**
+ * Available OWL manifestation types selectable in the manifestation form.
+ * @constant {{ id: string, label: string, desc: string }[]}
+ */
 const MANIFESTATION_TYPES = [
-  { id: 'AcuteManifestation', label: 'Aguda', desc: 'Síntomas de aparición rápida y corta duración (ej: crisis, erupciones)' },
+  { id: 'AcuteManifestation',   label: 'Aguda',   desc: 'Síntomas de aparición rápida y corta duración (ej: crisis, erupciones)' },
   { id: 'ChronicManifestation', label: 'Crónica', desc: 'Secuelas o complicaciones a largo plazo (ej: pérdida auditiva)' },
 ];
 
+/**
+ * Available OWL combination rule types selectable in the rule form.
+ * @constant {{ id: string, label: string, desc: string }[]}
+ */
 const RULE_TYPES = [
-  { id: 'CoexistentDiseaseProgressionSet', label: 'Coexistente', desc: 'Las manifestaciones pueden ocurrir simultáneamente (cualquier combinación)' },
-  { id: 'AlternativeDiseaseProgressionSet', label: 'Alternativa', desc: 'Las manifestaciones son mutuamente excluyentes (solo una puede ocurrir)' },
-  { id: 'SequentialDiseaseProgressionSet', label: 'Secuencial', desc: 'Las manifestaciones se suceden en orden (cada una reemplaza a la anterior)' },
+  { id: 'CoexistentDiseaseProgressionSet',   label: 'Coexistente', desc: 'Las manifestaciones pueden ocurrir simultáneamente' },
+  { id: 'AlternativeDiseaseProgressionSet',  label: 'Alternativa', desc: 'Las manifestaciones son mutuamente excluyentes (solo una puede ocurrir)' },
+  { id: 'SequentialDiseaseProgressionSet',   label: 'Secuencial',  desc: 'Las manifestaciones se suceden en orden' },
 ];
 
+/**
+ * Default state for the manifestation creation form.
+ * @constant {{ label: string, description: string, type: string }}
+ */
 const EMPTY_MANIFESTATION = { label: '', description: '', type: 'AcuteManifestation' };
+
+/**
+ * Default state for the combination rule creation form.
+ * @constant {{ label: string, description: string, ruleType: string, affectedProgressions: string[], hasNullProgression: boolean, hasFirst: string }}
+ */
 const EMPTY_RULE = { label: '', description: '', ruleType: 'CoexistentDiseaseProgressionSet', affectedProgressions: [], hasNullProgression: false, hasFirst: '' };
 
-// ── Props from App.jsx: manifestations, setManifestations, combinationRules, setCombinationRules
+/**
+ * @component ProgressionPage
+ * @description Two-column editor for disease progression elements.
+ *
+ * **Left panel**
+ * - *Manifestaciones*
+ * - *Reglas de Combinación*
+ *
+ * **Right panel** 
+ * - *Ontology Graph*.
+ *
+ * @param {Function}           props.onNavigate                           - Top-level navigation callback.
+ * @param {string}             [props.currentPage='progression']          - Active page key.
+ * @param {import('../App').Manifestation[]}    props.manifestations      - Shared manifestations array from App.
+ * @param {Function}           props.setManifestations                    - Setter for the shared manifestations array.
+ * @param {import('../App').CombinationRule[]}  props.combinationRules    - Shared combination rules array from App.
+ * @param {Function}           props.setCombinationRules                  - Setter for the shared combination rules array.
+ * @param {Object[]}           [props.graphNodes=[]]                      - React Flow nodes.
+ * @param {Object[]}           [props.graphEdges=[]]                      - React Flow edges.
+ * @returns {JSX.Element}
+ */
 function ProgressionPage({ onNavigate, currentPage = 'progression', manifestations, setManifestations, combinationRules, setCombinationRules, graphNodes = [], graphEdges = [] }) {
+
+  /**
+   * Form state for the manifestation being created.
+   * @type {[{label: string, description: string, type: string}, Function]}
+   */
   const [manifForm, setManifForm] = useState({ ...EMPTY_MANIFESTATION });
+
+  /**
+   * Form state for the combination rule being created.
+   * @type {[{label: string, description: string, ruleType: string, affectedProgressions: string[], hasNullProgression: boolean, hasFirst: string}, Function]}
+   */
   const [ruleForm, setRuleForm] = useState({ ...EMPTY_RULE });
+
+  /** @type {[string, Function]} 
+   * Which tab is currently active: 'manifestations' | 'rules'. 
+   */
   const [activeTab, setActiveTab] = useState('manifestations');
+
+  /** @type {[number[], Function]} 
+   * Indices of expanded manifestation list items. 
+   */
   const [expandedManifs, setExpandedManifs] = useState([]);
+
+  /** @type {[number[], Function]} 
+   * Indices of expanded combination rule list items. 
+   */
   const [expandedRules, setExpandedRules] = useState([]);
 
   const { saving: savingManif, success: successManif, error: errorManif, withSave: withSaveManif } = useSaveStatus();
-  const { saving: savingRule, success: successRule, error: errorRule, withSave: withSaveRule } = useSaveStatus();
+  const { saving: savingRule,  success: successRule,  error: errorRule,  withSave: withSaveRule  } = useSaveStatus();
 
+  /**
+   * Generic change handler for the manifestation form inputs.
+   * @param {React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement>} e
+   */
   const handleManifChange = (e) => setManifForm(p => ({ ...p, [e.target.name]: e.target.value }));
 
+  /**
+   * Persists the current `manifForm` as an OWL individual and appends it to
+   * the shared `manifestations` array.
+   */
   const handleSaveManifestation = () => {
     if (!manifForm.label) return;
     withSaveManif(async () => {
@@ -47,10 +131,19 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
     });
   };
 
+  /**
+   * Removes a manifestation from the shared array by index.
+   * @param {number} index - Position in the `manifestations` array to remove.
+   */
   const handleDeleteManifestation = (index) => {
     setManifestations(prev => prev.filter((_, i) => i !== index));
   };
 
+  /**
+   * Toggles a manifestation label in `ruleForm.affectedProgressions`.
+   * Used to build the `hasDiseaseProgression` object properties of the rule.
+   * @param {string} label - Label of the manifestation to toggle.
+   */
   const toggleAffected = (label) => {
     setRuleForm(prev => ({
       ...prev,
@@ -60,6 +153,20 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
     }));
   };
 
+  /**
+   * Persists the current `ruleForm` as an OWL combination rule individual and
+   * appends it to the shared `combinationRules` array. Resets the form on success.
+   *
+   * Object properties assembled:
+   * - `hasDiseaseProgression` for each affected manifestation.
+   * - `hasFirst` (Sequential rules only, when set).
+   *
+   * Datatype properties assembled:
+   * - `hasDescription` (when present).
+   * - `hasNullProgression` (Alternative rules only).
+   *
+   * Guards against empty label.
+   */
   const handleSaveRule = () => {
     if (!ruleForm.label) return;
     withSaveRule(async () => {
@@ -88,25 +195,36 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
     });
   };
 
+  /**
+   * Removes a combination rule from the shared array by index.
+   * @param {number} index - Position in the `combinationRules` array to remove.
+   */
   const handleDeleteRule = (index) => {
     setCombinationRules(prev => prev.filter((_, i) => i !== index));
   };
 
+  /**
+   * Returns a display label and Tailwind colour classes for a given OWL class name.
+   * Used to render type badges in the manifestation and rule lists.
+   * @param {string} type - OWL class identifier.
+   * @returns {{ text: string, cls: string }}
+   */
   const typeLabel = (type) => {
-    if (type === 'AcuteManifestation') return { text: 'Manifestación Aguda', cls: 'bg-yellow-100 text-yellow-800' };
-    if (type === 'ChronicManifestation') return { text: 'Manifestación Crónica', cls: 'bg-amber-100 text-amber-800' };
-    if (type === 'CoexistentDiseaseProgressionSet') return { text: 'Regla Coexistente', cls: 'bg-teal-100 text-teal-700' };
-    if (type === 'AlternativeDiseaseProgressionSet') return { text: 'Regla Alternativa', cls: 'bg-teal-100 text-teal-700' };
-    if (type === 'SequentialDiseaseProgressionSet') return { text: 'Regla Secuencial', cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'AcuteManifestation')                return { text: 'Manifestación Aguda',   cls: 'bg-yellow-100 text-yellow-800' };
+    if (type === 'ChronicManifestation')              return { text: 'Manifestación Crónica',  cls: 'bg-amber-100 text-amber-800' };
+    if (type === 'CoexistentDiseaseProgressionSet')   return { text: 'Regla Coexistente',      cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'AlternativeDiseaseProgressionSet')  return { text: 'Regla Alternativa',      cls: 'bg-teal-100 text-teal-700' };
+    if (type === 'SequentialDiseaseProgressionSet')   return { text: 'Regla Secuencial',       cls: 'bg-teal-100 text-teal-700' };
     return { text: type, cls: 'bg-gray-100 text-gray-700' };
   };
 
+  // Total number of progression elements shown in the graph badge.
   const totalElements = manifestations.length + combinationRules.length;
 
   return (
     <div className="flex h-[calc(100vh-5.1rem)] bg-slate-200 overflow-hidden font-sans">
 
-      {/* Floating messages */}
+      {/* Manifestation save result toast */}
       {(errorManif || successManif) && (
         <div className="fixed top-24 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${errorManif ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'}`}>
@@ -115,6 +233,8 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
           </div>
         </div>
       )}
+
+      {/* Rule save result toast */}
       {(errorRule || successRule) && (
         <div className="fixed top-36 right-8 z-50 animate-in fade-in slide-in-from-top-4">
           <div className={`flex items-center space-x-3 p-4 rounded-2xl shadow-xl border-l-4 ${errorRule ? 'bg-white border-rose-500 text-rose-800' : 'bg-white border-emerald-500 text-emerald-800'}`}>
@@ -126,7 +246,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
 
       <div className="flex w-full p-8 gap-8 overflow-hidden">
 
-        {/* ══ LEFT PANEL ══════════════════════════════════════════════════════ */}
+        {/* Left panel: Manifestation and combination rule editor */}
         <div className="w-1/2 overflow-y-auto pr-2 custom-scrollbar">
           <div className="max-w-3xl space-y-6 pb-12">
 
@@ -138,10 +258,10 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
               </div>
               <p className="text-emerald-100/80 text-sm font-medium">Define las manifestaciones clínicas y las reglas que gobiernan su aparición</p>
             </div>
-              
+
             <DiseaseTabs currentPage={currentPage} onNavigate={onNavigate} />
 
-            {/* Tabs */}
+            {/* Tab switcher: Manifestations / Combination Rules */}
             <div className="flex bg-white/60 rounded-2xl border border-slate-300 p-1 shadow-sm">
               <button
                 onClick={() => setActiveTab('manifestations')}
@@ -161,10 +281,9 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
               </button>
             </div>
 
-            {/* ── MANIFESTATIONS TAB ─────────────────────────────────────────── */}
+            {/* Manifestations content */}
             {activeTab === 'manifestations' && (
               <div className="space-y-5">
-                {/* Form */}
                 <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm space-y-4">
                   <div className="flex items-center space-x-3 mb-2">
                     <div className="p-2 bg-emerald-100 rounded-lg"><Activity className="w-4 h-4 text-emerald-600" /></div>
@@ -260,10 +379,11 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
               </div>
             )}
 
-            {/* ── RULES TAB ─────────────────────────────────────────────────── */}
+            {/* Rules content */}
             {activeTab === 'rules' && (
               <div className="space-y-5">
 
+                {/* Warning shown when no manifestations exist yet */}
                 {manifestations.length === 0 && (
                   <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
                     <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
@@ -273,7 +393,6 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                   </div>
                 )}
 
-                {/* Form */}
                 <div className="bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-300 p-6 shadow-sm space-y-4">
                   <div className="flex items-center space-x-3 mb-2">
                     <div className="p-2 bg-emerald-100 rounded-lg"><GitBranch className="w-4 h-4 text-emerald-600" /></div>
@@ -301,7 +420,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                     />
                   </div>
 
-                  {/* Rule type */}
+                  {/* Rule type selector */}
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 mb-2 block">Tipo de Regla</label>
                     <div className="space-y-2">
@@ -318,7 +437,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                     </div>
                   </div>
 
-                  {/* Affected progressions */}
+                  {/* Affected manifestations */}
                   {manifestations.length > 0 && (
                     <div>
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 mb-2 block">
@@ -344,7 +463,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                     </div>
                   )}
 
-                  {/* hasNullProgression (Alternative) */}
+                  {/* hasNullProgression, only for Alternative progression sets */}
                   {ruleForm.ruleType === 'AlternativeDiseaseProgressionSet' && (
                     <div className="flex items-center gap-3 p-4 bg-rose-50 rounded-xl border border-rose-200">
                       <label className="flex items-center gap-3 cursor-pointer">
@@ -360,7 +479,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                     </div>
                   )}
 
-                  {/* hasFirst (Sequential) */}
+                  {/* hasFirst, only for Sequential progression sets */}
                   {ruleForm.ruleType === 'SequentialDiseaseProgressionSet' && ruleForm.affectedProgressions.length > 0 && (
                     <div>
                       <label className="text-[10px] font-bold text-slate-500 uppercase ml-1 mb-2 block">Primer elemento de la secuencia (hasFirst)</label>
@@ -387,7 +506,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
                   </button>
                 </div>
 
-                {/* Rules list */}
+                {/* Combination rules list */}
                 {combinationRules.length > 0 && (
                   <div className="space-y-3">
                     <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Reglas creadas ({combinationRules.length})</h3>
@@ -447,7 +566,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
               </div>
             )}
 
-            {/* ── Navigation ─────────────────────────────────────────────────── */}
+            {/* Proceed to DevelopmentPage */}
             <button
               onClick={() => onNavigate('development')}
               className="w-full bg-linear-to-r from-emerald-600 to-emerald-900 text-white py-5 rounded-2xl font-bold hover:shadow-xl hover:shadow-emerald-500/30 transition-all active:scale-[0.98] flex items-center justify-center space-x-3 shadow-lg shadow-emerald-200"
@@ -458,7 +577,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
           </div>
         </div>
 
-        {/* ══ RIGHT PANEL: Ontology graph ═════════════════════════════════════ */}
+        {/* Right panel: Ontology graph */}
         <div className="w-1/2 flex flex-col overflow-hidden">
           <div className="bg-white/90 backdrop-blur-md rounded-[2.5rem] flex flex-col h-full border-2 border-emerald-500 overflow-hidden">
 
@@ -497,7 +616,7 @@ function ProgressionPage({ onNavigate, currentPage = 'progression', manifestatio
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(226, 232, 240, 0.3); border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(16, 185, 129, 0.4); border-radius: 10px; }
