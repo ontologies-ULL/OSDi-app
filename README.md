@@ -105,6 +105,7 @@ Las dependencias del backend son:
 | `fastapi` | ≥ 0.104.0 | Framework web para la API |
 | `uvicorn` | — | Servidor ASGI para ejecutar FastAPI |
 | `owlready2` | ≥ 0.45 | Manipulación de ontologías OWL |
+| `rdflib` | ≥ 6.0 | Serialización y parsing de grafos RDF/OWL |
 | `pydantic` | — | Validación de datos (instalado junto con FastAPI) |
 
 Para instalarlas:

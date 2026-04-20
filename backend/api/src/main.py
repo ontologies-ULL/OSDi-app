@@ -270,7 +270,7 @@ def save_ontology_local(
     If no filename is given, an automatic name is generated using the current timestamp.
     @param format Export format. Supported values: owl (RDF/XML), turtle.
     @param filename Base name for the saved file (extension appended automatically).
-                   If omitted, a timestamp-based name is generated (e.g. disease_ontology_20260318_120000).
+    If omitted, a timestamp-based name is generated (e.g. disease_ontology_20260318_120000).
     @return JSON with the saved file path, filename, size in bytes, and format used.
     @throws HTTPException 400 if no ontology is loaded.
     @throws HTTPException 500 if saving fails or the resulting file is empty.
